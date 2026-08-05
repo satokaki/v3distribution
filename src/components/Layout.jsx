@@ -67,7 +67,14 @@ const menuGroups = [
           { label: "Rekening", path: "/master/rekening" },
         ],
       },
-      { label: "Pengaturan", path: "/pengaturan", icon: Settings, soon: true },
+      {
+        label: "Pengaturan",
+        path: "/pengaturan",
+        icon: Settings,
+        children: [
+          { label: "User & Hak Akses", path: "/pengaturan/user" },
+        ],
+      },
     ],
   },
 ];

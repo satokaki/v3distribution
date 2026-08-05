@@ -20,6 +20,10 @@
       "type": "string",
       "title": "Kode User"
     },
+    "display_name": {
+      "type": "string",
+      "title": "Nama Tampilan"
+    },
     "phone": {
       "type": "string",
       "title": "Nomor Telepon"
