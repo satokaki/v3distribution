@@ -1,0 +1,103 @@
+{
+  "name": "PayablePayment",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Pelunasan"
+    },
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    },
+    "payable_id": {
+      "type": "string",
+      "title": "Hutang"
+    },
+    "payable_code": {
+      "type": "string",
+      "title": "Kode Hutang"
+    },
+    "supplier_id": {
+      "type": "string",
+      "title": "Supplier"
+    },
+    "supplier_name": {
+      "type": "string",
+      "title": "Nama Supplier"
+    },
+    "account_id": {
+      "type": "string",
+      "title": "Rekening"
+    },
+    "account_name": {
+      "type": "string",
+      "title": "Nama Rekening"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "amount": {
+      "type": "number",
+      "title": "Jumlah",
+      "default": 0
+    },
+    "note": {
+      "type": "string",
+      "title": "Catatan"
+    }
+  },
+  "required": [
+    "code",
+    "date",
+    "payable_id",
+    "account_id",
+    "branch_id",
+    "amount"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

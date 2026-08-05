@@ -50,7 +50,7 @@ const menuGroups = [
     items: [
       { label: "Stok", path: "/stok", icon: Boxes },
       { label: "Kartu Stok", path: "/kartu-stok", icon: ClipboardList },
-      { label: "Hutang", path: "/hutang", icon: CreditCard, soon: true },
+      { label: "Hutang", path: "/hutang", icon: CreditCard },
       { label: "Piutang", path: "/piutang", icon: Wallet, soon: true },
       { label: "Buku Kas", path: "/buku-kas", icon: Wallet },
       { label: "Komisi", path: "/komisi", icon: Percent, soon: true },

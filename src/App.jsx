@@ -29,6 +29,7 @@ import Penjualan from '@/pages/Penjualan';
 import Mutasi from '@/pages/Mutasi';
 import JualBeliCabang from '@/pages/JualBeliCabang';
 import BukuKas from '@/pages/BukuKas';
+import Hutang from '@/pages/Hutang';
 import PengaturanUser from '@/pages/PengaturanUser';
 // Add page imports here
 
@@ -80,6 +81,7 @@ const AuthenticatedApp = () => {
           <Route path="/mutasi" element={<Mutasi />} />
           <Route path="/jual-beli-cabang" element={<JualBeliCabang />} />
           <Route path="/buku-kas" element={<BukuKas />} />
+          <Route path="/hutang" element={<Hutang />} />
           <Route path="/pengaturan/user" element={<PengaturanUser />} />
         </Route>
       </Route>
