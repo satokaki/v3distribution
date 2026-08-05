@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Outlet } from "react-router-dom";
+import { BranchProvider } from "@/lib/BranchContext";
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -189,7 +190,9 @@ export default function Layout() {
         </header>
 
         <main className="p-4 lg:p-8 max-w-[1600px] mx-auto">
-          <Outlet />
+          <BranchProvider>
+            <Outlet />
+          </BranchProvider>
         </main>
       </div>
     </div>
