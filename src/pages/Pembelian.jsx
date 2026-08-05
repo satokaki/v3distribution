@@ -4,11 +4,12 @@ import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import TransactionFormModal from "@/components/TransactionFormModal";
+import TransactionDetailModal from "@/components/TransactionDetailModal";
+import TransactionActionMenu from "@/components/TransactionActionMenu";
+import { printTransaction } from "@/components/PrintTransaction";
 import { postPurchase } from "@/lib/posting";
 import { writeAuditLog } from "@/lib/audit";
 import { formatCurrency, generateCode } from "@/lib/utils";
-
-const selectCls = "px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 
 function StatusBadge({ value }) {
   const map = {
@@ -23,6 +24,9 @@ export default function Pembelian() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [viewing, setViewing] = useState(null);
+  const [busyId, setBusyId] = useState(null);
 
   const load = async () => {
     setLoading(true);
@@ -40,33 +44,77 @@ export default function Pembelian() {
     load();
   }, []);
 
-  const handleSubmit = async (payload, action) => {
+  const openNew = () => {
+    setEditing(null);
+    setModalOpen(true);
+  };
+
+  const openEdit = (row) => {
+    setEditing(row);
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (payload, action, editingId) => {
     try {
       if (action === "post") {
         await postPurchase(payload);
-        toast({ title: "Pembelian diposting: stok, kas/hutang & harga beli diperbarui" });
+        if (editingId) {
+          await base44.entities.Purchase.delete(editingId);
+        }
+        await writeAuditLog({ action: "post_purchase", module: "pembelian", description: `Posting pembelian dari draft`, branchId: payload.branch_id });
+        toast({ type: "success", title: "Pembelian diposting", description: "Stok, kas/hutang & harga beli diperbarui" });
       } else {
-        const code = generateCode("PMB", data.length, 5);
-        await base44.entities.Purchase.create({ ...payload, code, status: "draft" });
-        await writeAuditLog({ action: "create_purchase_draft", module: "pembelian", description: `Draft pembelian ${code}`, branchId: payload.branch_id });
-        toast({ title: "Draft pembelian disimpan" });
+        if (editingId) {
+          await base44.entities.Purchase.update(editingId, { ...payload, status: "draft" });
+          await writeAuditLog({ action: "update_purchase_draft", module: "pembelian", description: `Edit draft pembelian`, branchId: payload.branch_id });
+          toast({ type: "success", title: "Draft pembelian diperbarui" });
+        } else {
+          const code = generateCode("PMB", data.length, 5);
+          await base44.entities.Purchase.create({ ...payload, code, status: "draft" });
+          await writeAuditLog({ action: "create_purchase_draft", module: "pembelian", description: `Draft pembelian ${code}`, branchId: payload.branch_id });
+          toast({ type: "success", title: "Draft pembelian disimpan" });
+        }
       }
       setModalOpen(false);
+      setEditing(null);
       await load();
     } catch (err) {
-      toast({ title: "Gagal posting pembelian", description: err.message, variant: "destructive" });
+      toast({ title: "Gagal menyimpan pembelian", description: err.message, variant: "destructive" });
     }
   };
+
+  const handlePost = async (row) => {
+    if (busyId) return;
+    setBusyId(row.id);
+    try {
+      await postPurchase(row);
+      await base44.entities.Purchase.delete(row.id);
+      await writeAuditLog({ action: "post_purchase", module: "pembelian", description: `Posting draft ${row.code}`, branchId: row.branch_id });
+      toast({ type: "success", title: "Pembelian diposting", description: `${row.code} → posted` });
+      await load();
+    } catch (err) {
+      toast({ title: "Gagal posting", description: err.message, variant: "destructive" });
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handlePrint = (row) => printTransaction(row, "purchase");
 
   const handleDelete = async (row) => {
     if (row.status === "posted") {
       toast({ title: "Transaksi posted tidak bisa dihapus", variant: "destructive" });
       return;
     }
-    await base44.entities.Purchase.delete(row.id);
-    await writeAuditLog({ action: "delete_purchase_draft", module: "pembelian", description: `Hapus draft ${row.code}`, branchId: row.branch_id });
-    toast({ title: "Draft dihapus" });
-    await load();
+    if (!confirm(`Hapus draft ${row.code}?`)) return;
+    try {
+      await base44.entities.Purchase.delete(row.id);
+      await writeAuditLog({ action: "delete_purchase_draft", module: "pembelian", description: `Hapus draft ${row.code}`, branchId: row.branch_id });
+      toast({ type: "success", title: "Draft dihapus" });
+      await load();
+    } catch (err) {
+      toast({ title: "Gagal menghapus", description: err.message, variant: "destructive" });
+    }
   };
 
   const columns = [
@@ -86,7 +134,7 @@ export default function Pembelian() {
         subtitle="Transaksi pembelian barang dari supplier"
         action={
           <button
-            onClick={() => setModalOpen(true)}
+            onClick={openNew}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
           >
             + Pembelian Baru
@@ -97,21 +145,30 @@ export default function Pembelian() {
         columns={columns}
         data={data}
         loading={loading}
-        searchKeys={["code", "supplier_name"]}
+        searchKeys={["code", "supplier_name", "note"]}
         searchPlaceholder="Cari kode / supplier..."
         rowActions={(row) => (
-          <button
-            onClick={() => handleDelete(row)}
-            className="px-2 py-1 text-xs rounded-lg text-destructive hover:bg-destructive/10"
-          >
-            Hapus
-          </button>
+          <TransactionActionMenu
+            row={row}
+            onView={setViewing}
+            onEdit={openEdit}
+            onPost={handlePost}
+            onPrint={handlePrint}
+            onDelete={handleDelete}
+          />
         )}
       />
       <TransactionFormModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={() => { setModalOpen(false); setEditing(null); }}
         onSubmit={handleSubmit}
+        type="purchase"
+        editing={editing}
+      />
+      <TransactionDetailModal
+        open={!!viewing}
+        onClose={() => setViewing(null)}
+        data={viewing}
         type="purchase"
       />
     </div>
