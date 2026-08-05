@@ -1,0 +1,103 @@
+{
+  "name": "ReceivablePayment",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Pelunasan"
+    },
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    },
+    "receivable_id": {
+      "type": "string",
+      "title": "Piutang"
+    },
+    "receivable_code": {
+      "type": "string",
+      "title": "Kode Piutang"
+    },
+    "customer_id": {
+      "type": "string",
+      "title": "Pelanggan"
+    },
+    "customer_name": {
+      "type": "string",
+      "title": "Nama Pelanggan"
+    },
+    "account_id": {
+      "type": "string",
+      "title": "Rekening"
+    },
+    "account_name": {
+      "type": "string",
+      "title": "Nama Rekening"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "amount": {
+      "type": "number",
+      "title": "Jumlah",
+      "default": 0
+    },
+    "note": {
+      "type": "string",
+      "title": "Catatan"
+    }
+  },
+  "required": [
+    "code",
+    "date",
+    "receivable_id",
+    "account_id",
+    "branch_id",
+    "amount"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

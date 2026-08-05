@@ -1,0 +1,146 @@
+{
+  "name": "Receivable",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Piutang"
+    },
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    },
+    "due_date": {
+      "type": "string",
+      "title": "Jatuh Tempo"
+    },
+    "customer_id": {
+      "type": "string",
+      "title": "Pelanggan"
+    },
+    "customer_name": {
+      "type": "string",
+      "title": "Nama Pelanggan"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "source": {
+      "type": "string",
+      "title": "Sumber",
+      "enum": [
+        "sale",
+        "interbranch",
+        "manual"
+      ],
+      "default": "manual"
+    },
+    "ref_type": {
+      "type": "string",
+      "title": "Jenis Referensi"
+    },
+    "ref_id": {
+      "type": "string",
+      "title": "ID Referensi"
+    },
+    "ref_code": {
+      "type": "string",
+      "title": "Kode Referensi"
+    },
+    "amount": {
+      "type": "number",
+      "title": "Nilai Piutang",
+      "default": 0
+    },
+    "paid_amount": {
+      "type": "number",
+      "title": "Terbayar",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "unpaid",
+        "partial",
+        "paid"
+      ],
+      "default": "unpaid"
+    },
+    "note": {
+      "type": "string",
+      "title": "Catatan"
+    }
+  },
+  "required": [
+    "code",
+    "date",
+    "customer_id",
+    "branch_id",
+    "amount",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    }
+  }
+}
