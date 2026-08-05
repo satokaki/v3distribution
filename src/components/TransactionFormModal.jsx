@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { formatCurrency } from "@/lib/utils";
 
 const inputCls = "w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 
-export default function TransactionFormModal({ open, onClose, onSubmit, type }) {
+export default function TransactionFormModal({ open, onClose, onSubmit, type, editing = null }) {
   const isPurchase = type === "purchase";
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -27,6 +27,7 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type }) 
   const [items, setItems] = useState([]);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const skipReset = useRef(false);
 
   useEffect(() => {
     if (!open) return;
@@ -44,10 +45,31 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type }) 
     base44.entities.Warehouse.filter({ branch_id: branchId }).then((r) => setWarehouses(r || []));
     base44.entities.Account.filter({ branch_id: branchId }).then((r) => setAccounts(r || []));
     if (!isPurchase) base44.entities.Salesperson.filter({ branch_id: branchId }).then((r) => setSalespersons(r || []));
-    setWarehouseId("");
-    setAccountId("");
-    setSalespersonId("");
+    if (skipReset.current) {
+      skipReset.current = false;
+    } else {
+      setWarehouseId("");
+      setAccountId("");
+      setSalespersonId("");
+    }
   }, [branchId, isPurchase]);
+
+  // Prefill saat edit
+  useEffect(() => {
+    if (!open || !editing) return;
+    skipReset.current = true;
+    setDate(editing.date ? editing.date.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setBranchId(editing.branch_id || "");
+    setWarehouseId(editing.warehouse_id || "");
+    setAccountId(editing.account_id || "");
+    setPartnerId(editing.customer_id || editing.supplier_id || "");
+    setSalespersonId(editing.salesperson_id || "");
+    setSaleType(editing.sale_type || "retail");
+    setPaymentMethod(editing.payment_method || "tunai");
+    setDueDate(editing.due_date ? editing.due_date.slice(0, 10) : "");
+    setItems((editing.items || []).map((it) => ({ ...it })));
+    setNote(editing.note || "");
+  }, [open, editing]);
 
   // Reprice items when sale type changes
   useEffect(() => {
@@ -118,7 +140,7 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type }) 
     if (!branchId || !warehouseId || items.length === 0) return;
     setSubmitting(true);
     try {
-      await onSubmit(buildPayload(), action);
+      await onSubmit(buildPayload(), action, editing?.id);
     } finally {
       setSubmitting(false);
     }
@@ -129,7 +151,9 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type }) 
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-4xl max-h-[92vh] overflow-y-auto bg-card rounded-2xl shadow-2xl border border-border">
         <div className="sticky top-0 flex items-center justify-between px-6 py-4 border-b border-border bg-card rounded-t-2xl z-10">
-          <h2 className="text-lg font-semibold">{isPurchase ? "Pembelian Baru" : "Penjualan Baru"}</h2>
+          <h2 className="text-lg font-semibold">
+            {editing ? `Edit ${isPurchase ? "Pembelian" : "Penjualan"}` : (isPurchase ? "Pembelian Baru" : "Penjualan Baru")}
+          </h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-accent">
             <X className="w-5 h-5" />
           </button>

@@ -63,7 +63,7 @@ export default function DataTable({
                     {col.label}
                   </th>
                 ))}
-                {rowActions && <th className="px-4 py-3 w-0" />}
+                {rowActions && <th className="px-4 py-3 w-0 sticky right-0 bg-muted/40" />}
               </tr>
             </thead>
             <tbody>
@@ -104,7 +104,7 @@ export default function DataTable({
                       </td>
                     ))}
                     {rowActions && (
-                      <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-4 py-3 whitespace-nowrap sticky right-0 bg-card shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.08)]" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1">{rowActions(row)}</div>
                       </td>
                     )}
