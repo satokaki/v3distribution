@@ -1,0 +1,190 @@
+{
+  "name": "InterbranchTransaction",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode"
+    },
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    },
+    "seller_branch_id": {
+      "type": "string",
+      "title": "Cabang Penjual"
+    },
+    "seller_branch_code": {
+      "type": "string",
+      "title": "Kode Penjual"
+    },
+    "seller_branch_name": {
+      "type": "string",
+      "title": "Nama Penjual"
+    },
+    "seller_warehouse_id": {
+      "type": "string",
+      "title": "Gudang Penjual"
+    },
+    "seller_warehouse_name": {
+      "type": "string",
+      "title": "Nama Gudang Penjual"
+    },
+    "buyer_branch_id": {
+      "type": "string",
+      "title": "Cabang Pembeli"
+    },
+    "buyer_branch_code": {
+      "type": "string",
+      "title": "Kode Pembeli"
+    },
+    "buyer_branch_name": {
+      "type": "string",
+      "title": "Nama Pembeli"
+    },
+    "buyer_warehouse_id": {
+      "type": "string",
+      "title": "Gudang Pembeli"
+    },
+    "buyer_warehouse_name": {
+      "type": "string",
+      "title": "Nama Gudang Pembeli"
+    },
+    "items": {
+      "type": "array",
+      "title": "Item",
+      "items": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "qty": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          },
+          "subtotal": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "total": {
+      "type": "number",
+      "title": "Total",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "draft",
+        "posted"
+      ],
+      "default": "draft"
+    },
+    "note": {
+      "type": "string",
+      "title": "Catatan"
+    }
+  },
+  "required": [
+    "code",
+    "date",
+    "seller_branch_id",
+    "seller_warehouse_id",
+    "buyer_branch_id",
+    "buyer_warehouse_id",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.seller_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.buyer_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.seller_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.buyer_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.seller_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.buyer_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.seller_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.buyer_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    }
+  }
+}
