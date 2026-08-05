@@ -52,7 +52,7 @@ const menuGroups = [
       { label: "Kartu Stok", path: "/kartu-stok", icon: ClipboardList },
       { label: "Hutang", path: "/hutang", icon: CreditCard, soon: true },
       { label: "Piutang", path: "/piutang", icon: Wallet, soon: true },
-      { label: "Buku Kas", path: "/buku-kas", icon: Wallet, soon: true },
+      { label: "Buku Kas", path: "/buku-kas", icon: Wallet },
       { label: "Komisi", path: "/komisi", icon: Percent, soon: true },
     ],
   },
