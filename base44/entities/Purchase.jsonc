@@ -1,0 +1,99 @@
+{
+  "name": "Purchase",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Pembelian"
+    },
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    },
+    "supplier_id": {
+      "type": "string",
+      "title": "Supplier"
+    },
+    "supplier_name": {
+      "type": "string",
+      "title": "Nama Supplier"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "warehouse_id": {
+      "type": "string",
+      "title": "Gudang"
+    },
+    "warehouse_name": {
+      "type": "string",
+      "title": "Nama Gudang"
+    },
+    "account_id": {
+      "type": "string",
+      "title": "Rekening"
+    },
+    "account_name": {
+      "type": "string",
+      "title": "Nama Rekening"
+    },
+    "items": {
+      "type": "array",
+      "title": "Item",
+      "items": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "qty": {
+            "type": "number"
+          },
+          "price": {
+            "type": "number"
+          },
+          "subtotal": {
+            "type": "number"
+          }
+        }
+      },
+      "default": []
+    },
+    "total": {
+      "type": "number",
+      "title": "Total",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "draft",
+        "posted"
+      ],
+      "default": "draft"
+    },
+    "note": {
+      "type": "string",
+      "title": "Catatan"
+    }
+  },
+  "required": [
+    "code",
+    "date",
+    "branch_id",
+    "warehouse_id",
+    "status"
+  ]
+}

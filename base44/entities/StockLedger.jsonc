@@ -1,0 +1,85 @@
+{
+  "name": "StockLedger",
+  "type": "object",
+  "properties": {
+    "product_id": {
+      "type": "string",
+      "title": "Produk"
+    },
+    "product_name": {
+      "type": "string",
+      "title": "Nama Produk"
+    },
+    "sku": {
+      "type": "string",
+      "title": "SKU"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "warehouse_id": {
+      "type": "string",
+      "title": "Gudang"
+    },
+    "warehouse_name": {
+      "type": "string",
+      "title": "Nama Gudang"
+    },
+    "movement_type": {
+      "type": "string",
+      "title": "Tipe Mutasi",
+      "enum": [
+        "in",
+        "out",
+        "transfer_in",
+        "transfer_out",
+        "opname_in",
+        "opname_out",
+        "adjustment"
+      ],
+      "default": "in"
+    },
+    "ref_type": {
+      "type": "string",
+      "title": "Jenis Referensi"
+    },
+    "ref_id": {
+      "type": "string",
+      "title": "ID Referensi"
+    },
+    "ref_code": {
+      "type": "string",
+      "title": "Kode Referensi"
+    },
+    "quantity": {
+      "type": "number",
+      "title": "Jumlah",
+      "default": 0
+    },
+    "balance_after": {
+      "type": "number",
+      "title": "Saldo Setelah",
+      "default": 0
+    },
+    "note": {
+      "type": "string",
+      "title": "Catatan"
+    },
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    }
+  },
+  "required": [
+    "product_id",
+    "warehouse_id",
+    "movement_type",
+    "quantity",
+    "date"
+  ]
+}

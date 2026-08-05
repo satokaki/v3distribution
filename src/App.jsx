@@ -17,6 +17,10 @@ import Customers from '@/pages/master/Customers';
 import Suppliers from '@/pages/master/Suppliers';
 import Salespersons from '@/pages/master/Salespersons';
 import Accounts from '@/pages/master/Accounts';
+import Stock from '@/pages/Stock';
+import StockCard from '@/pages/StockCard';
+import Pembelian from '@/pages/Pembelian';
+import Penjualan from '@/pages/Penjualan';
 // Add page imports here
 
 const AuthenticatedApp = () => {
@@ -56,6 +60,10 @@ const AuthenticatedApp = () => {
           <Route path="/master/supplier" element={<Suppliers />} />
           <Route path="/master/sales" element={<Salespersons />} />
           <Route path="/master/rekening" element={<Accounts />} />
+          <Route path="/stok" element={<Stock />} />
+          <Route path="/kartu-stok" element={<StockCard />} />
+          <Route path="/pembelian" element={<Pembelian />} />
+          <Route path="/penjualan" element={<Penjualan />} />
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />

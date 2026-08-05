@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   Repeat2,
   Boxes,
+  ClipboardList,
   CreditCard,
   Wallet,
   Percent,
@@ -29,8 +30,8 @@ const menuGroups = [
   {
     label: "Transaksi",
     items: [
-      { label: "Penjualan", path: "/penjualan", icon: ShoppingCart, soon: true },
-      { label: "Pembelian", path: "/pembelian", icon: PackagePlus, soon: true },
+      { label: "Penjualan", path: "/penjualan", icon: ShoppingCart },
+      { label: "Pembelian", path: "/pembelian", icon: PackagePlus },
       { label: "Mutasi Cabang", path: "/mutasi", icon: ArrowLeftRight, soon: true },
       { label: "Jual Beli Cabang", path: "/jual-beli-cabang", icon: Repeat2, soon: true },
     ],
@@ -38,7 +39,8 @@ const menuGroups = [
   {
     label: "Inventori & Keuangan",
     items: [
-      { label: "Stok", path: "/stok", icon: Boxes, soon: true },
+      { label: "Stok", path: "/stok", icon: Boxes },
+      { label: "Kartu Stok", path: "/kartu-stok", icon: ClipboardList },
       { label: "Hutang", path: "/hutang", icon: CreditCard, soon: true },
       { label: "Piutang", path: "/piutang", icon: Wallet, soon: true },
       { label: "Buku Kas", path: "/buku-kas", icon: Wallet, soon: true },

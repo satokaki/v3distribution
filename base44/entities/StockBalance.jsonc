@@ -1,0 +1,54 @@
+{
+  "name": "StockBalance",
+  "type": "object",
+  "properties": {
+    "product_id": {
+      "type": "string",
+      "title": "Produk"
+    },
+    "product_name": {
+      "type": "string",
+      "title": "Nama Produk"
+    },
+    "sku": {
+      "type": "string",
+      "title": "SKU"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "warehouse_id": {
+      "type": "string",
+      "title": "Gudang"
+    },
+    "warehouse_name": {
+      "type": "string",
+      "title": "Nama Gudang"
+    },
+    "quantity": {
+      "type": "number",
+      "title": "Jumlah",
+      "default": 0
+    },
+    "unit": {
+      "type": "string",
+      "title": "Satuan",
+      "default": "pcs"
+    },
+    "min_stock": {
+      "type": "number",
+      "title": "Min Stok",
+      "default": 0
+    }
+  },
+  "required": [
+    "product_id",
+    "warehouse_id",
+    "quantity"
+  ]
+}
