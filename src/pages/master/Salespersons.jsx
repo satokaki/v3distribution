@@ -12,6 +12,7 @@ const FIELDS = (branches) => [
   { name: "branch_id", label: "Cabang", type: "select", required: true, options: branches.map(b => ({ value: b.id, label: `${b.code} — ${b.name}` })) },
   { name: "phone", label: "Nomor Telepon", type: "text" },
   { name: "join_date", label: "Tanggal Bergabung", type: "date" },
+  { name: "commission_rate", label: "Rate Komisi (%)", type: "number" },
   { name: "notes", label: "Catatan", type: "textarea", full: true },
   { name: "is_active", label: "Status Aktif", type: "boolean" },
 ];
@@ -22,6 +23,7 @@ const columns = [
   { key: "branch_code", label: "Cabang" },
   { key: "phone", label: "Telepon" },
   { key: "join_date", label: "Bergabung" },
+  { key: "commission_rate", label: "Komisi", render: (v) => `${v || 0}%` },
   { key: "is_active", label: "Status", render: (v) => (
     <span className={`px-2 py-0.5 rounded-full text-xs ${v ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
       {v ? "Aktif" : "Nonaktif"}

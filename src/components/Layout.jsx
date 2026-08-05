@@ -53,13 +53,13 @@ const menuGroups = [
       { label: "Hutang", path: "/hutang", icon: CreditCard },
       { label: "Piutang", path: "/piutang", icon: Wallet },
       { label: "Buku Kas", path: "/buku-kas", icon: Wallet },
-      { label: "Komisi", path: "/komisi", icon: Percent, soon: true },
+      { label: "Komisi", path: "/komisi", icon: Percent },
     ],
   },
   {
     label: "Data & Sistem",
     items: [
-      { label: "Laporan", path: "/laporan", icon: FileBarChart, soon: true },
+      { label: "Laporan", path: "/laporan", icon: FileBarChart },
       {
         label: "Master Data",
         path: "/master/cabang",

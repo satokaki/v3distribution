@@ -1,12 +1,20 @@
 {
-  "name": "Salesperson",
+  "name": "Commission",
   "type": "object",
   "properties": {
     "code": {
       "type": "string",
-      "title": "Kode Sales"
+      "title": "Kode Komisi"
     },
-    "name": {
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    },
+    "salesperson_id": {
+      "type": "string",
+      "title": "Sales"
+    },
+    "salesperson_name": {
       "type": "string",
       "title": "Nama Sales"
     },
@@ -18,34 +26,62 @@
       "type": "string",
       "title": "Kode Cabang"
     },
-    "phone": {
+    "sale_id": {
       "type": "string",
-      "title": "Nomor Telepon"
+      "title": "Penjualan"
     },
-    "join_date": {
+    "sale_code": {
       "type": "string",
-      "format": "date",
-      "title": "Tanggal Bergabung"
+      "title": "Kode Penjualan"
     },
-    "commission_rate": {
+    "sale_total": {
       "type": "number",
-      "title": "Rate Komisi (%)",
+      "title": "Nilai Penjualan",
       "default": 0
     },
-    "notes": {
+    "rate": {
+      "type": "number",
+      "title": "Rate (%)",
+      "default": 0
+    },
+    "amount": {
+      "type": "number",
+      "title": "Jumlah Komisi",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "accrued",
+        "paid"
+      ],
+      "default": "accrued"
+    },
+    "paid_date": {
+      "type": "string",
+      "title": "Tanggal Dibayar"
+    },
+    "account_id": {
+      "type": "string",
+      "title": "Rekening"
+    },
+    "account_name": {
+      "type": "string",
+      "title": "Nama Rekening"
+    },
+    "note": {
       "type": "string",
       "title": "Catatan"
-    },
-    "is_active": {
-      "type": "boolean",
-      "title": "Status Aktif",
-      "default": true
     }
   },
   "required": [
     "code",
-    "name",
-    "branch_id"
+    "date",
+    "salesperson_id",
+    "branch_id",
+    "amount",
+    "status"
   ],
   "rls": {
     "read": {

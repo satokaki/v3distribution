@@ -31,6 +31,8 @@ import JualBeliCabang from '@/pages/JualBeliCabang';
 import BukuKas from '@/pages/BukuKas';
 import Hutang from '@/pages/Hutang';
 import Piutang from '@/pages/Piutang';
+import Komisi from '@/pages/Komisi';
+import Laporan from '@/pages/Laporan';
 import PengaturanUser from '@/pages/PengaturanUser';
 // Add page imports here
 
@@ -84,6 +86,8 @@ const AuthenticatedApp = () => {
           <Route path="/buku-kas" element={<BukuKas />} />
           <Route path="/hutang" element={<Hutang />} />
           <Route path="/piutang" element={<Piutang />} />
+          <Route path="/komisi" element={<Komisi />} />
+          <Route path="/laporan" element={<Laporan />} />
           <Route path="/pengaturan/user" element={<PengaturanUser />} />
         </Route>
       </Route>
