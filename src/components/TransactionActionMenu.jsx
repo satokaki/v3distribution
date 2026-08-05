@@ -1,5 +1,5 @@
 import React from "react";
-import { MoreHorizontal, Eye, Pencil, Send, Printer, Trash2 } from "lucide-react";
+import { MoreHorizontal, Eye, Pencil, Printer, Send, Trash2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -10,16 +10,15 @@ import {
 
 /**
  * Menu aksi transaksi standar.
- * Draft: Lihat, Edit, Posting, Hapus Draft.
- * Posted: Lihat, Cetak.
- * Void/Cancelled: Lihat, Cetak.
+ * Draft  : View, Edit, Preview Cetak, Posting, Delete
+ * Posted : View, Cetak
  */
 export default function TransactionActionMenu({
   row,
   onView,
   onEdit,
+  onPreview,
   onPost,
-  onPrint,
   onDelete,
   canPost = true,
 }) {
@@ -38,23 +37,28 @@ export default function TransactionActionMenu({
           <MoreHorizontal className="w-4 h-4" />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44">
+      <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={() => onView && onView(row)}>
-          <Eye className="w-4 h-4 mr-2" /> Lihat
+          <Eye className="w-4 h-4 mr-2" /> View
         </DropdownMenuItem>
         {isDraft && onEdit && (
           <DropdownMenuItem onClick={() => onEdit(row)}>
             <Pencil className="w-4 h-4 mr-2" /> Edit
           </DropdownMenuItem>
         )}
+        {isDraft && onPreview && (
+          <DropdownMenuItem onClick={() => onPreview(row)}>
+            <Printer className="w-4 h-4 mr-2" /> Preview Cetak
+          </DropdownMenuItem>
+        )}
+        {isPosted && onPreview && (
+          <DropdownMenuItem onClick={() => onPreview(row)}>
+            <Printer className="w-4 h-4 mr-2" /> Cetak
+          </DropdownMenuItem>
+        )}
         {isDraft && canPost && onPost && (
           <DropdownMenuItem onClick={() => onPost(row)}>
             <Send className="w-4 h-4 mr-2" /> Posting
-          </DropdownMenuItem>
-        )}
-        {(isPosted || status === "void" || status === "cancelled") && onPrint && (
-          <DropdownMenuItem onClick={() => onPrint(row)}>
-            <Printer className="w-4 h-4 mr-2" /> Cetak
           </DropdownMenuItem>
         )}
         {isDraft && onDelete && (
@@ -64,7 +68,7 @@ export default function TransactionActionMenu({
               onClick={() => onDelete(row)}
               className="text-destructive focus:text-destructive"
             >
-              <Trash2 className="w-4 h-4 mr-2" /> Hapus Draft
+              <Trash2 className="w-4 h-4 mr-2" /> Delete
             </DropdownMenuItem>
           </>
         )}

@@ -1,11 +1,11 @@
 import { formatCurrency } from "@/lib/utils";
 
 /**
- * Cetak transaksi via print window HTML.
+ * Bangun HTML nota transaksi. isDraft → watermark "DRAFT — BELUM DIPOSTING".
  * type: "sale" | "purchase"
  */
-export function printTransaction(data, type) {
-  if (!data) return;
+export function buildTransactionHtml(data, type, isDraft = false) {
+  if (!data) return "";
   const isPurchase = type === "purchase";
   const items = data.items || [];
   const entityName = "V3 Distribution";
@@ -21,14 +21,18 @@ export function printTransaction(data, type) {
       <td style="text-align:right">${formatCurrency(it.subtotal)}</td>
     </tr>`).join("");
 
-  const html = `<!DOCTYPE html>
+  const banner = isDraft
+    ? `<div class="draft-banner">DRAFT — BELUM DIPOSTING</div><div class="draft-watermark">DRAFT</div>`
+    : "";
+
+  return `<!DOCTYPE html>
 <html lang="id">
 <head>
 <meta charset="utf-8" />
 <title>${docTitle} ${data.code || ""}</title>
 <style>
   * { font-family: Arial, Helvetica, sans-serif; }
-  body { padding: 24px; color: #111; }
+  body { padding: 24px; color: #111; position: relative; }
   .head { display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid #111; padding-bottom:12px; margin-bottom:16px; }
   .brand { font-size:20px; font-weight:bold; }
   .muted { color:#555; font-size:12px; }
@@ -39,10 +43,15 @@ export function printTransaction(data, type) {
   .total { margin-top:12px; text-align:right; font-size:16px; font-weight:bold; }
   .sign { margin-top:48px; display:flex; justify-content:space-between; font-size:13px; }
   .sign div { text-align:center; }
+  .draft-banner { background:#f59e0b; color:#7c2d12; font-weight:bold; text-align:center; padding:10px; letter-spacing:2px; border:2px dashed #7c2d12; margin-bottom:16px; font-size:14px; }
+  .draft-watermark { position:fixed; top:45%; left:50%; transform:translate(-50%,-50%) rotate(-30deg); font-size:90px; font-weight:bold; color:rgba(245,158,11,0.16); z-index:0; pointer-events:none; white-space:nowrap; }
+  .content { position:relative; z-index:1; }
   @media print { .noprint { display:none; } }
 </style>
 </head>
 <body>
+  ${banner}
+  <div class="content">
   <div class="head">
     <div>
       <div class="brand">${entityName}</div>
@@ -93,14 +102,16 @@ export function printTransaction(data, type) {
       <div style="margin-top:48px">(....................)</div>
     </div>
   </div>
-
-  <div class="noprint" style="margin-top:24px; text-align:center">
-    <button onclick="window.print()" style="padding:8px 16px">Cetak</button>
-    <button onclick="window.close()" style="padding:8px 16px;margin-left:8px">Tutup</button>
   </div>
 </body>
 </html>`;
+}
 
+/**
+ * Cetak transaksi via print window HTML.
+ */
+export function printTransaction(data, type, isDraft = false) {
+  const html = buildTransactionHtml(data, type, isDraft);
   const w = window.open("", "_blank", "width=820,height=720");
   if (!w) {
     alert("Pop-up diblokir. Izinkan pop-up untuk mencetak.");
