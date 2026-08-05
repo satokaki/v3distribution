@@ -48,17 +48,16 @@ export default function Dashboard() {
     async function load() {
       setLoading(true);
       try {
-        const [branches, products, customers, suppliers, salespersons, accounts, stock, sales, purchases] = await Promise.all([
-          base44.entities.Branch.list("-created_date", 500),
-          base44.entities.Product.list("-created_date", 500),
-          base44.entities.Customer.list("-created_date", 500),
-          base44.entities.Supplier.list("-created_date", 500),
-          base44.entities.Salesperson.list("-created_date", 500),
-          base44.entities.Account.list("-created_date", 500),
-          base44.entities.StockBalance.list("-created_date", 500),
-          base44.entities.Sale.list("-created_date", 500),
-          base44.entities.Purchase.list("-created_date", 500),
-        ]);
+        // Ambil data berurutan (bukan paralel) agar tidak memicu rate limit platform.
+        const branches = await base44.entities.Branch.list("-created_date", 500);
+        const products = await base44.entities.Product.list("-created_date", 500);
+        const customers = await base44.entities.Customer.list("-created_date", 500);
+        const suppliers = await base44.entities.Supplier.list("-created_date", 500);
+        const salespersons = await base44.entities.Salesperson.list("-created_date", 500);
+        const accounts = await base44.entities.Account.list("-created_date", 500);
+        const stock = await base44.entities.StockBalance.list("-created_date", 500);
+        const sales = await base44.entities.Sale.list("-created_date", 500);
+        const purchases = await base44.entities.Purchase.list("-created_date", 500);
         if (!cancelled) setData({ branches: branches || [], products: products || [], customers: customers || [], suppliers: suppliers || [], salespersons: salespersons || [], accounts: accounts || [], stock: stock || [], sales: sales || [], purchases: purchases || [] });
       } finally {
         if (!cancelled) setLoading(false);
