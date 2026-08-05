@@ -170,16 +170,23 @@
       ]
     },
     "delete": {
-      "$or": [
+      "$and": [
         {
-          "user_condition": {
-            "role": "admin"
-          }
+          "data.status": "draft"
         },
         {
-          "data.branch_id": {
-            "$in": "{{user.data.accessible_branch_ids}}"
-          }
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "data.branch_id": {
+                "$in": "{{user.data.accessible_branch_ids}}"
+              }
+            }
+          ]
         }
       ]
     }
