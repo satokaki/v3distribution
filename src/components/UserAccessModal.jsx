@@ -119,14 +119,14 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
     if (!form.email) return toast({ title: "Email wajib diisi", variant: "destructive" });
     const dup = existingUsers.find((u) => u.email.toLowerCase() === form.email.toLowerCase() && u.id !== editing?.id);
     if (dup) return toast({ title: "Email sudah dipakai user lain", variant: "destructive" });
-    if (selIds.length === 0 && form.app_role !== "super_admin")
-      return toast({ title: "Pilih minimal satu cabang", variant: "destructive" });
-    const defBranch = selIds.find((id) => assignments[id].is_default) || selIds[0] || "";
 
     setSubmitting(true);
     try {
-      let userId = editing?.id;
       if (editing) {
+        // User sudah ada (telah menerima undangan) — terapkan role & akses cabang.
+        if (selIds.length === 0 && form.app_role !== "super_admin")
+          throw new Error("Pilih minimal satu cabang");
+        const defBranch = selIds.find((id) => assignments[id].is_default) || selIds[0] || "";
         await base44.entities.User.update(editing.id, {
           role: platformRoleFor(form.app_role),
           app_role: form.app_role,
@@ -138,54 +138,40 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
           accessible_branch_ids: selIds,
         });
         await base44.entities.UserBranch.deleteMany({ user_id: editing.id });
+        if (selIds.length) {
+          const records = selIds.map((bid) => {
+            const b = branches.find((x) => x.id === bid) || {};
+            const a = assignments[bid];
+            return {
+              user_id: editing.id,
+              user_name: form.display_name || "",
+              user_email: form.email,
+              branch_id: bid,
+              branch_code: b.code || "",
+              branch_name: b.name || "",
+              assignment_role: a.assignment_role || form.app_role,
+              is_branch_manager: a.is_branch_manager,
+              is_default: bid === defBranch,
+              can_view: a.can_view,
+              can_create: a.can_create,
+              can_edit: a.can_edit,
+              can_approve: a.can_approve,
+              can_post: a.can_post,
+              can_cancel: a.can_cancel,
+              can_export: a.can_export,
+              status: "active",
+            };
+          });
+          await base44.entities.UserBranch.bulkCreate(records);
+        }
         await writeAuditLog({ action: "edit_user", module: "user", description: `Edit user ${form.email}`, branchId: defBranch });
+        toast({ title: "User diperbarui" });
       } else {
+        // User belum ada — kirim undangan saja. Akses cabang diatur setelah user menerima, via Edit User.
         await base44.users.inviteUser(form.email, platformRoleFor(form.app_role));
-        const users = await base44.entities.User.list("-created_date", 500);
-        const created = users.find((u) => u.email.toLowerCase() === form.email.toLowerCase());
-        if (!created) throw new Error("User tidak ditemukan setelah undang");
-        userId = created.id;
-        await base44.entities.User.update(created.id, {
-          role: platformRoleFor(form.app_role),
-          app_role: form.app_role,
-          phone: form.phone,
-          display_name: form.display_name,
-          status: form.status,
-          user_code: form.user_code,
-          default_branch_id: defBranch,
-          accessible_branch_ids: selIds,
-        });
-        await writeAuditLog({ action: "add_user", module: "user", description: `Tambah user ${form.email}`, branchId: defBranch });
+        await writeAuditLog({ action: "invite_user", module: "user", description: `Undang user ${form.email} (${form.app_role})` });
+        toast({ title: "Undangan terkirim", description: `Email dikirim ke ${form.email}. Setelah diterima, buka Edit User untuk mengatur cabang.` });
       }
-
-      if (selIds.length) {
-        const records = selIds.map((bid) => {
-          const b = branches.find((x) => x.id === bid) || {};
-          const a = assignments[bid];
-          return {
-            user_id: userId,
-            user_name: form.display_name || "",
-            user_email: form.email,
-            branch_id: bid,
-            branch_code: b.code || "",
-            branch_name: b.name || "",
-            assignment_role: a.assignment_role || form.app_role,
-            is_branch_manager: a.is_branch_manager,
-            is_default: bid === defBranch,
-            can_view: a.can_view,
-            can_create: a.can_create,
-            can_edit: a.can_edit,
-            can_approve: a.can_approve,
-            can_post: a.can_post,
-            can_cancel: a.can_cancel,
-            can_export: a.can_export,
-            status: "active",
-          };
-        });
-        await base44.entities.UserBranch.bulkCreate(records);
-      }
-
-      toast({ title: editing ? "User diperbarui" : "User ditambahkan & diundang" });
       onSaved && onSaved();
       onClose();
     } catch (err) {
@@ -273,9 +259,14 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
           <div className="border-t border-border pt-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Cabang yang Dapat Diakses</h3>
-              <span className="text-xs text-muted-foreground">{selIds.length} cabang dipilih</span>
+              {editing && <span className="text-xs text-muted-foreground">{selIds.length} cabang dipilih</span>}
             </div>
-            {branches.length === 0 ? (
+            {!editing ? (
+              <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                Akses cabang & permission diatur <span className="font-medium text-foreground">setelah user menerima undangan</span>.
+                Begitu user login pertama kali, buka kembali user ini lewat tombol <span className="font-medium text-foreground">Edit</span> untuk memilih cabang, posisi, dan permission.
+              </div>
+            ) : branches.length === 0 ? (
               <p className="text-sm text-muted-foreground">Belum ada cabang. Tambahkan cabang dulu di Master Data.</p>
             ) : (
               <div className="space-y-2">
