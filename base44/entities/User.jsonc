@@ -1,17 +1,56 @@
 {
+  "name": "User",
+  "type": "object",
   "properties": {
     "role": {
       "type": "string",
-      "description": "The role of the user in the app",
+      "description": "Role global user di aplikasi",
       "enum": [
+        "super_admin",
+        "kepala_cabang",
+        "admin_cabang",
+        "kasir",
+        "gudang",
+        "finance",
         "admin",
         "user"
       ]
+    },
+    "user_code": {
+      "type": "string",
+      "title": "Kode User"
+    },
+    "phone": {
+      "type": "string",
+      "title": "Nomor Telepon"
+    },
+    "default_branch_id": {
+      "type": "string",
+      "title": "Cabang Default"
+    },
+    "accessible_branch_ids": {
+      "type": "array",
+      "title": "Cabang yang Diakses",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "status": {
+      "type": "string",
+      "title": "Status Akun",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active"
+    },
+    "last_login_at": {
+      "type": "string",
+      "title": "Login Terakhir"
     }
   },
   "required": [
     "role"
-  ],
-  "name": "User",
-  "type": "object"
+  ]
 }

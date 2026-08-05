@@ -1,0 +1,54 @@
+{
+  "name": "Role",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Role"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nama Role"
+    },
+    "description": {
+      "type": "string",
+      "title": "Deskripsi"
+    },
+    "level": {
+      "type": "string",
+      "title": "Level",
+      "enum": [
+        "super_admin",
+        "kepala_cabang",
+        "admin_cabang",
+        "kasir",
+        "gudang",
+        "finance",
+        "custom"
+      ],
+      "default": "custom"
+    },
+    "permissions": {
+      "type": "array",
+      "title": "Permission",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
+    "is_system": {
+      "type": "boolean",
+      "title": "Role Sistem",
+      "default": false
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Aktif",
+      "default": true
+    }
+  },
+  "required": [
+    "code",
+    "name"
+  ]
+}

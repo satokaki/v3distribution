@@ -1,0 +1,41 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "title": "User"
+    },
+    "user_name": {
+      "type": "string",
+      "title": "Nama User"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "action": {
+      "type": "string",
+      "title": "Aksi"
+    },
+    "module": {
+      "type": "string",
+      "title": "Modul"
+    },
+    "description": {
+      "type": "string",
+      "title": "Deskripsi"
+    },
+    "ip": {
+      "type": "string",
+      "title": "IP"
+    },
+    "device": {
+      "type": "string",
+      "title": "Device"
+    }
+  },
+  "required": [
+    "action"
+  ]
+}

@@ -1,0 +1,92 @@
+{
+  "name": "UserBranch",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "title": "User"
+    },
+    "user_name": {
+      "type": "string",
+      "title": "Nama User"
+    },
+    "user_email": {
+      "type": "string",
+      "title": "Email"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "branch_name": {
+      "type": "string",
+      "title": "Nama Cabang"
+    },
+    "assignment_role": {
+      "type": "string",
+      "title": "Posisi di Cabang"
+    },
+    "is_branch_manager": {
+      "type": "boolean",
+      "title": "Kepala Cabang",
+      "default": false
+    },
+    "is_default": {
+      "type": "boolean",
+      "title": "Cabang Default",
+      "default": false
+    },
+    "can_view": {
+      "type": "boolean",
+      "title": "Lihat",
+      "default": true
+    },
+    "can_create": {
+      "type": "boolean",
+      "title": "Tambah",
+      "default": false
+    },
+    "can_edit": {
+      "type": "boolean",
+      "title": "Ubah",
+      "default": false
+    },
+    "can_approve": {
+      "type": "boolean",
+      "title": "Setujui",
+      "default": false
+    },
+    "can_post": {
+      "type": "boolean",
+      "title": "Posting",
+      "default": false
+    },
+    "can_cancel": {
+      "type": "boolean",
+      "title": "Batal",
+      "default": false
+    },
+    "can_export": {
+      "type": "boolean",
+      "title": "Export",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "active",
+        "inactive"
+      ],
+      "default": "active"
+    }
+  },
+  "required": [
+    "user_id",
+    "branch_id"
+  ]
+}
