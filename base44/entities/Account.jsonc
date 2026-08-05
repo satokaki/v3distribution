@@ -1,0 +1,54 @@
+{
+  "name": "Account",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Rekening"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Cabang"
+    },
+    "branch_code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nama Rekening"
+    },
+    "account_type": {
+      "type": "string",
+      "title": "Jenis",
+      "enum": [
+        "kas",
+        "bank",
+        "ewallet",
+        "clearing"
+      ],
+      "default": "kas"
+    },
+    "opening_balance": {
+      "type": "number",
+      "title": "Saldo Awal",
+      "default": 0
+    },
+    "current_balance": {
+      "type": "number",
+      "title": "Saldo Berjalan",
+      "default": 0
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Status Aktif",
+      "default": true
+    }
+  },
+  "required": [
+    "code",
+    "name",
+    "branch_id",
+    "account_type"
+  ]
+}

@@ -1,0 +1,32 @@
+{
+  "name": "ProductCategory",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Kategori"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nama Kategori"
+    },
+    "description": {
+      "type": "string",
+      "title": "Deskripsi"
+    },
+    "sync_enabled": {
+      "type": "boolean",
+      "title": "Sinkron Antar Cabang",
+      "default": true
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Status Aktif",
+      "default": true
+    }
+  },
+  "required": [
+    "code",
+    "name"
+  ]
+}

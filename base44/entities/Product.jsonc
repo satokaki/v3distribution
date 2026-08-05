@@ -1,0 +1,93 @@
+{
+  "name": "Product",
+  "type": "object",
+  "properties": {
+    "sku": {
+      "type": "string",
+      "title": "SKU"
+    },
+    "barcode": {
+      "type": "string",
+      "title": "Barcode"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nama Barang"
+    },
+    "brand": {
+      "type": "string",
+      "title": "Merek"
+    },
+    "category_id": {
+      "type": "string",
+      "title": "Kategori"
+    },
+    "category_name": {
+      "type": "string",
+      "title": "Nama Kategori"
+    },
+    "subcategory": {
+      "type": "string",
+      "title": "Subkategori"
+    },
+    "product_type": {
+      "type": "string",
+      "title": "Jenis Barang"
+    },
+    "unit": {
+      "type": "string",
+      "title": "Satuan",
+      "default": "pcs"
+    },
+    "content_per_carton": {
+      "type": "number",
+      "title": "Isi per Karton"
+    },
+    "nicotine_level": {
+      "type": "string",
+      "title": "Kadar Nikotin"
+    },
+    "volume": {
+      "type": "string",
+      "title": "Volume"
+    },
+    "purchase_price": {
+      "type": "number",
+      "title": "Harga Beli"
+    },
+    "retail_price": {
+      "type": "number",
+      "title": "Harga Retail"
+    },
+    "grosir_price": {
+      "type": "number",
+      "title": "Harga Grosir"
+    },
+    "interbranch_price": {
+      "type": "number",
+      "title": "Harga Antar Cabang"
+    },
+    "min_stock": {
+      "type": "number",
+      "title": "Minimum Stok"
+    },
+    "owner_branch_id": {
+      "type": "string",
+      "title": "Cabang Pemilik"
+    },
+    "sync_enabled": {
+      "type": "boolean",
+      "title": "Sinkron Antar Cabang",
+      "default": true
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Status Aktif",
+      "default": true
+    }
+  },
+  "required": [
+    "sku",
+    "name"
+  ]
+}

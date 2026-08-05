@@ -1,0 +1,67 @@
+{
+  "name": "Supplier",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Supplier"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nama Supplier"
+    },
+    "contact": {
+      "type": "string",
+      "title": "Kontak"
+    },
+    "phone": {
+      "type": "string",
+      "title": "Nomor Telepon"
+    },
+    "address": {
+      "type": "string",
+      "title": "Alamat"
+    },
+    "city": {
+      "type": "string",
+      "title": "Kota"
+    },
+    "bank_account": {
+      "type": "string",
+      "title": "Rekening Bank"
+    },
+    "payment_terms": {
+      "type": "number",
+      "title": "Tempo Pembayaran (hari)",
+      "default": 0
+    },
+    "debt_limit": {
+      "type": "number",
+      "title": "Limit Hutang",
+      "default": 0
+    },
+    "debt_balance": {
+      "type": "number",
+      "title": "Saldo Hutang",
+      "default": 0
+    },
+    "owner_branch_id": {
+      "type": "string",
+      "title": "Cabang Pemilik"
+    },
+    "sync_enabled": {
+      "type": "boolean",
+      "title": "Sinkron Antar Cabang",
+      "default": false
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Status Aktif",
+      "default": true
+    }
+  },
+  "required": [
+    "code",
+    "name"
+  ]
+}

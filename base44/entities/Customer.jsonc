@@ -1,0 +1,78 @@
+{
+  "name": "Customer",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Pelanggan"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nama Pelanggan"
+    },
+    "store_name": {
+      "type": "string",
+      "title": "Nama Toko"
+    },
+    "phone": {
+      "type": "string",
+      "title": "Nomor Telepon"
+    },
+    "address": {
+      "type": "string",
+      "title": "Alamat"
+    },
+    "city": {
+      "type": "string",
+      "title": "Kota"
+    },
+    "area": {
+      "type": "string",
+      "title": "Area"
+    },
+    "customer_type": {
+      "type": "string",
+      "title": "Tipe Pelanggan",
+      "enum": [
+        "retail",
+        "grosir",
+        "reseller",
+        "distributor"
+      ],
+      "default": "retail"
+    },
+    "credit_limit": {
+      "type": "number",
+      "title": "Limit Kredit",
+      "default": 0
+    },
+    "payment_terms": {
+      "type": "number",
+      "title": "Tempo Pembayaran (hari)",
+      "default": 0
+    },
+    "receivable_balance": {
+      "type": "number",
+      "title": "Saldo Piutang",
+      "default": 0
+    },
+    "owner_branch_id": {
+      "type": "string",
+      "title": "Cabang Pemilik"
+    },
+    "sync_enabled": {
+      "type": "boolean",
+      "title": "Sinkron Antar Cabang",
+      "default": false
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Status Aktif",
+      "default": true
+    }
+  },
+  "required": [
+    "code",
+    "name"
+  ]
+}

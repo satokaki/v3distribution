@@ -1,0 +1,59 @@
+{
+  "name": "Branch",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Cabang"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nama Cabang"
+    },
+    "address": {
+      "type": "string",
+      "title": "Alamat"
+    },
+    "phone": {
+      "type": "string",
+      "title": "Nomor Telepon"
+    },
+    "person_in_charge": {
+      "type": "string",
+      "title": "Penanggung Jawab"
+    },
+    "branch_type": {
+      "type": "string",
+      "title": "Jenis Cabang",
+      "enum": [
+        "pusat",
+        "cabang"
+      ],
+      "default": "cabang"
+    },
+    "retail_enabled": {
+      "type": "boolean",
+      "title": "Retail Aktif",
+      "default": true
+    },
+    "grosir_enabled": {
+      "type": "boolean",
+      "title": "Grosir Aktif",
+      "default": true
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Status Aktif",
+      "default": true
+    },
+    "notes": {
+      "type": "string",
+      "title": "Catatan"
+    }
+  },
+  "required": [
+    "code",
+    "name",
+    "branch_type"
+  ]
+}
