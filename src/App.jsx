@@ -8,6 +8,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import Layout from '@/components/Layout';
+import { BranchProvider } from '@/lib/BranchContext';
 import Dashboard from '@/pages/Dashboard';
 import Branches from '@/pages/master/Branches';
 import Warehouses from '@/pages/master/Warehouses';
@@ -51,7 +52,7 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
-        <Route element={<Layout />}>
+        <Route element={<BranchProvider><Layout /></BranchProvider>}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/master/cabang" element={<Branches />} />
           <Route path="/master/gudang" element={<Warehouses />} />

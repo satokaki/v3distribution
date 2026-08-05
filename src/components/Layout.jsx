@@ -1,7 +1,14 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Outlet } from "react-router-dom";
-import { BranchProvider } from "@/lib/BranchContext";
+import { useBranchContext } from "@/lib/BranchContext";
+import BranchSelector from "@/components/BranchSelector";
+import { base44 } from "@/api/base44Client";
+
+const ROLE_LABEL = {
+  super_admin: "Super Admin", kepala_cabang: "Kepala Cabang", admin_cabang: "Admin Cabang",
+  kasir: "Kasir", gudang: "Gudang", finance: "Finance", admin: "Admin", user: "User",
+};
 import {
   LayoutDashboard,
   ShoppingCart,
@@ -19,6 +26,7 @@ import {
   Menu,
   X,
   Store,
+  LogOut,
 } from "lucide-react";
 
 const menuGroups = [
@@ -129,6 +137,7 @@ function NavItem({ item, onNavigate }) {
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { user } = useBranchContext();
 
   return (
     <div className="min-h-screen bg-background">
@@ -186,20 +195,26 @@ export default function Layout() {
             <span>Sistem Manajemen Gudang & Distribusi</span>
           </div>
           <div className="flex items-center gap-3">
-            <div className="text-right hidden sm:block">
-              <div className="text-sm font-medium">Super Admin</div>
-              <div className="text-[11px] text-muted-foreground">Semua Cabang</div>
+            <BranchSelector />
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-border">
+              <div className="text-right">
+                <div className="text-sm font-medium leading-tight">
+                  {user?.display_name || user?.full_name || user?.email || "—"}
+                </div>
+                <div className="text-[11px] text-muted-foreground">{ROLE_LABEL[user?.role] || user?.role || ""}</div>
+              </div>
+              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                {(user?.display_name || user?.full_name || user?.email || "U").charAt(0).toUpperCase()}
+              </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
-              SA
-            </div>
+            <button onClick={() => base44.auth.logout("/login")} className="p-2 rounded-lg hover:bg-accent" title="Keluar">
+              <LogOut className="w-4 h-4 text-muted-foreground" />
+            </button>
           </div>
         </header>
 
         <main className="p-4 lg:p-8 max-w-[1600px] mx-auto">
-          <BranchProvider>
-            <Outlet />
-          </BranchProvider>
+          <Outlet />
         </main>
       </div>
     </div>
