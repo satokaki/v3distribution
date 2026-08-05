@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import TransactionFormModal from "@/components/TransactionFormModal";
 import { applyStockMovement } from "@/lib/stockPosting";
+import { writeAuditLog } from "@/lib/audit";
 import { formatCurrency, generateCode } from "@/lib/utils";
 
 function StatusBadge({ value }) {
@@ -63,6 +64,13 @@ export default function Penjualan() {
       toast({ title: "Draft penjualan disimpan" });
     }
 
+    await writeAuditLog({
+      action: action === "post" ? "post_sale" : "create_sale_draft",
+      module: "penjualan",
+      description: `${action === "post" ? "Posting" : "Draft"} penjualan ${code}`,
+      branchId: payload.branch_id,
+    });
+
     setModalOpen(false);
     await load();
   };
@@ -73,6 +81,7 @@ export default function Penjualan() {
       return;
     }
     await base44.entities.Sale.delete(row.id);
+    await writeAuditLog({ action: "delete_sale_draft", module: "penjualan", description: `Hapus draft ${row.code}`, branchId: row.branch_id });
     toast({ title: "Draft dihapus" });
     await load();
   };

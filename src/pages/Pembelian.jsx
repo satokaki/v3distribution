@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import TransactionFormModal from "@/components/TransactionFormModal";
 import { applyStockMovement } from "@/lib/stockPosting";
+import { writeAuditLog } from "@/lib/audit";
 import { formatCurrency, generateCode } from "@/lib/utils";
 
 const selectCls = "px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring";
@@ -65,6 +66,13 @@ export default function Pembelian() {
       toast({ title: "Draft pembelian disimpan" });
     }
 
+    await writeAuditLog({
+      action: action === "post" ? "post_purchase" : "create_purchase_draft",
+      module: "pembelian",
+      description: `${action === "post" ? "Posting" : "Draft"} pembelian ${code}`,
+      branchId: payload.branch_id,
+    });
+
     setModalOpen(false);
     await load();
   };
@@ -75,6 +83,7 @@ export default function Pembelian() {
       return;
     }
     await base44.entities.Purchase.delete(row.id);
+    await writeAuditLog({ action: "delete_purchase_draft", module: "pembelian", description: `Hapus draft ${row.code}`, branchId: row.branch_id });
     toast({ title: "Draft dihapus" });
     await load();
   };

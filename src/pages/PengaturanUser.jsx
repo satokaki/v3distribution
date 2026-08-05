@@ -72,7 +72,7 @@ export default function PengaturanUser() {
     { key: "user_code", label: "Kode", render: (v) => <span className="font-mono text-xs">{v || "—"}</span> },
     { key: "display_name", label: "Nama", render: (v, r) => v || r.full_name || "—" },
     { key: "email", label: "Email" },
-    { key: "role", label: "Role", render: (v) => (
+    { key: "app_role", label: "Role", render: (v) => (
       <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">{ROLE_LABEL[v] || v}</span>
     ) },
     { key: "phone", label: "Telepon" },
@@ -98,7 +98,7 @@ export default function PengaturanUser() {
         columns={columns}
         data={users}
         loading={loading}
-        searchKeys={["user_code", "display_name", "email", "phone", "role"]}
+        searchKeys={["user_code", "display_name", "email", "phone", "app_role"]}
         searchPlaceholder="Cari user..."
         rowActions={(row) => (
           <>

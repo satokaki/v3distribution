@@ -23,6 +23,9 @@ const PERM_FLAGS = [
   { key: "can_export", label: "Export", def: false },
 ];
 
+// platform role: admin hanya untuk super_admin, selebihnya user
+const platformRoleFor = (appRole) => (appRole === "super_admin" ? "admin" : "user");
+
 function nextUserCode(users) {
   let max = 0;
   (users || []).forEach((u) => {
@@ -35,7 +38,7 @@ function nextUserCode(users) {
 export default function UserAccessModal({ open, onClose, onSaved, editing, branches, existingUsers }) {
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [form, setForm] = useState({ email: "", display_name: "", phone: "", role: "kasir", status: "active", user_code: "" });
+  const [form, setForm] = useState({ email: "", display_name: "", phone: "", app_role: "kasir", status: "active", user_code: "" });
   const [assignments, setAssignments] = useState({});
 
   useEffect(() => {
@@ -45,7 +48,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
         email: editing.email || "",
         display_name: editing.display_name || "",
         phone: editing.phone || "",
-        role: editing.role || "kasir",
+        app_role: editing.app_role || "kasir",
         status: editing.status || "active",
         user_code: editing.user_code || "",
       });
@@ -55,7 +58,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
           const map = {};
           (ub || []).forEach((b) => {
             map[b.branch_id] = {
-              assignment_role: b.assignment_role || editing.role || "",
+              assignment_role: b.assignment_role || editing.app_role || "",
               is_branch_manager: !!b.is_branch_manager,
               is_default: !!b.is_default,
               can_view: b.can_view ?? true,
@@ -73,7 +76,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
         }
       })();
     } else {
-      setForm({ email: "", display_name: "", phone: "", role: "kasir", status: "active", user_code: nextUserCode(existingUsers) });
+      setForm({ email: "", display_name: "", phone: "", app_role: "kasir", status: "active", user_code: nextUserCode(existingUsers) });
       setAssignments({});
     }
   }, [open, editing, existingUsers]);
@@ -87,7 +90,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
       const next = { ...prev };
       if (on) {
         next[branchId] = next[branchId] || {
-          assignment_role: form.role,
+          assignment_role: form.app_role,
           is_branch_manager: false,
           is_default: selIds.length === 0,
           ...Object.fromEntries(PERM_FLAGS.map((p) => [p.key, p.def])),
@@ -116,7 +119,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
     if (!form.email) return toast({ title: "Email wajib diisi", variant: "destructive" });
     const dup = existingUsers.find((u) => u.email.toLowerCase() === form.email.toLowerCase() && u.id !== editing?.id);
     if (dup) return toast({ title: "Email sudah dipakai user lain", variant: "destructive" });
-    if (selIds.length === 0 && form.role !== "super_admin")
+    if (selIds.length === 0 && form.app_role !== "super_admin")
       return toast({ title: "Pilih minimal satu cabang", variant: "destructive" });
     const defBranch = selIds.find((id) => assignments[id].is_default) || selIds[0] || "";
 
@@ -125,7 +128,8 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
       let userId = editing?.id;
       if (editing) {
         await base44.entities.User.update(editing.id, {
-          role: form.role,
+          role: platformRoleFor(form.app_role),
+          app_role: form.app_role,
           phone: form.phone,
           display_name: form.display_name,
           status: form.status,
@@ -134,14 +138,16 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
           accessible_branch_ids: selIds,
         });
         await base44.entities.UserBranch.deleteMany({ user_id: editing.id });
-        await writeAuditLog({ action: "edit_user", module: "user", description: `Edit user ${form.email}` });
+        await writeAuditLog({ action: "edit_user", module: "user", description: `Edit user ${form.email}`, branchId: defBranch });
       } else {
-        await base44.users.inviteUser(form.email, form.role);
+        await base44.users.inviteUser(form.email, platformRoleFor(form.app_role));
         const users = await base44.entities.User.list("-created_date", 500);
         const created = users.find((u) => u.email.toLowerCase() === form.email.toLowerCase());
         if (!created) throw new Error("User tidak ditemukan setelah undang");
         userId = created.id;
         await base44.entities.User.update(created.id, {
+          role: platformRoleFor(form.app_role),
+          app_role: form.app_role,
           phone: form.phone,
           display_name: form.display_name,
           status: form.status,
@@ -149,7 +155,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
           default_branch_id: defBranch,
           accessible_branch_ids: selIds,
         });
-        await writeAuditLog({ action: "add_user", module: "user", description: `Tambah user ${form.email}` });
+        await writeAuditLog({ action: "add_user", module: "user", description: `Tambah user ${form.email}`, branchId: defBranch });
       }
 
       if (selIds.length) {
@@ -163,7 +169,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
             branch_id: bid,
             branch_code: b.code || "",
             branch_name: b.name || "",
-            assignment_role: a.assignment_role || form.role,
+            assignment_role: a.assignment_role || form.app_role,
             is_branch_manager: a.is_branch_manager,
             is_default: bid === defBranch,
             can_view: a.can_view,
@@ -201,7 +207,6 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {/* Identitas */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1.5">Email <span className="text-destructive">*</span></label>
@@ -227,8 +232,8 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
             <div>
               <label className="block text-sm font-medium mb-1.5">Role <span className="text-destructive">*</span></label>
               <select
-                value={form.role}
-                onChange={(e) => setForm({ ...form, role: e.target.value })}
+                value={form.app_role}
+                onChange={(e) => setForm({ ...form, app_role: e.target.value })}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 {ROLE_OPTIONS.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -265,7 +270,6 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
             </div>
           </div>
 
-          {/* Penempatan Cabang */}
           <div className="border-t border-border pt-4">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-semibold">Cabang yang Dapat Diakses</h3>
@@ -355,6 +359,7 @@ export default function UserAccessModal({ open, onClose, onSaved, editing, branc
           {!editing && (
             <p className="text-xs text-muted-foreground">
               User baru akan dikirim undang via email. Password awal diatur user sendiri setelah menerima undangan.
+              Role platform (admin/user) diatur otomatis: super_admin = admin, selebihnya user.
             </p>
           )}
 

@@ -12,8 +12,9 @@ export async function getCurrentUser() {
   }
 }
 
+/** Super admin = role platform 'admin' atau app_role 'super_admin'. */
 export function isSuperAdmin(user) {
-  return user?.role === "super_admin" || user?.role === "admin";
+  return user?.role === "admin" || user?.app_role === "super_admin";
 }
 
 const ROLE_TO_CODE = {
@@ -32,7 +33,7 @@ export async function loadUserAccess(user) {
 
   let rolePermissions = [];
   try {
-    const code = ROLE_TO_CODE[user.role] || user.role;
+    const code = ROLE_TO_CODE[user.app_role] || user.app_role || user.role;
     const roles = await base44.entities.Role.filter({ code });
     rolePermissions = roles[0]?.permissions || [];
   } catch {

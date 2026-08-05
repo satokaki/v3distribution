@@ -4,16 +4,22 @@
   "properties": {
     "role": {
       "type": "string",
-      "description": "Role global user di aplikasi",
+      "description": "Role platform: admin (super admin) atau user (cabang). Dipakai oleh RLS user_condition.role.",
+      "enum": [
+        "admin",
+        "user"
+      ]
+    },
+    "app_role": {
+      "type": "string",
+      "title": "Role Aplikasi (granular)",
       "enum": [
         "super_admin",
         "kepala_cabang",
         "admin_cabang",
         "kasir",
         "gudang",
-        "finance",
-        "admin",
-        "user"
+        "finance"
       ]
     },
     "user_code": {

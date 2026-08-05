@@ -64,6 +64,7 @@ const menuGroups = [
         label: "Master Data",
         path: "/master/cabang",
         icon: Database,
+        adminOnly: true,
         children: [
           { label: "Cabang", path: "/master/cabang" },
           { label: "Gudang", path: "/master/gudang" },
@@ -79,6 +80,7 @@ const menuGroups = [
         label: "Pengaturan",
         path: "/pengaturan",
         icon: Settings,
+        adminOnly: true,
         children: [
           { label: "User & Hak Akses", path: "/pengaturan/user" },
         ],
@@ -137,7 +139,7 @@ function NavItem({ item, onNavigate }) {
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useBranchContext();
+  const { user, isSuperAdmin } = useBranchContext();
 
   return (
     <div className="min-h-screen bg-background">
@@ -166,18 +168,22 @@ export default function Layout() {
         </div>
 
         <nav className="px-3 py-4 space-y-5 overflow-y-auto h-[calc(100%-4rem)]">
-          {menuGroups.map((group, gi) => (
+          {menuGroups.map((group, gi) => {
+            const visible = group.items.filter((item) => !item.adminOnly || isSuperAdmin);
+            if (visible.length === 0) return null;
+            return (
             <div key={gi} className="space-y-1">
               {group.label && (
                 <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   {group.label}
                 </div>
               )}
-              {group.items.map((item) => (
+              {visible.map((item) => (
                 <NavItem key={item.label} item={item} onNavigate={() => setSidebarOpen(false)} />
               ))}
             </div>
-          ))}
+            );
+          })}
         </nav>
       </aside>
 
@@ -201,7 +207,7 @@ export default function Layout() {
                 <div className="text-sm font-medium leading-tight">
                   {user?.display_name || user?.full_name || user?.email || "—"}
                 </div>
-                <div className="text-[11px] text-muted-foreground">{ROLE_LABEL[user?.role] || user?.role || ""}</div>
+                <div className="text-[11px] text-muted-foreground">{ROLE_LABEL[user?.app_role] || (user?.role === "admin" ? "Admin" : "User")}</div>
               </div>
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
                 {(user?.display_name || user?.full_name || user?.email || "U").charAt(0).toUpperCase()}
