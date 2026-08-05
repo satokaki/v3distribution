@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Outlet } from "react-router-dom";
+import { Link, useLocation, Outlet } from "react-router-dom";
 import { useBranchContext } from "@/lib/BranchContext";
 import BranchSelector from "@/components/BranchSelector";
 import { base44 } from "@/api/base44Client";
@@ -97,24 +96,35 @@ function NavItem({ item, onNavigate }) {
   );
   const isActive = location.pathname === item.path || (hasChildren && item.children.some((c) => location.pathname === c.path));
 
+  const baseCls = `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+    isActive
+      ? "bg-primary text-primary-foreground shadow-sm"
+      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+  }`;
+
+  const inner = (
+    <>
+      {item.icon && <item.icon className="w-4 h-4 shrink-0" />}
+      <span className="flex-1 text-left">{item.label}</span>
+      {item.soon && (
+        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
+          soon
+        </span>
+      )}
+    </>
+  );
+
   return (
     <div>
-      <button
-        onClick={() => (hasChildren ? setOpen(!open) : null)}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-          isActive
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-        }`}
-      >
-        {item.icon && <item.icon className="w-4 h-4 shrink-0" />}
-        <span className="flex-1 text-left">{item.label}</span>
-        {item.soon && (
-          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
-            soon
-          </span>
-        )}
-      </button>
+      {hasChildren ? (
+        <button onClick={() => setOpen(!open)} className={baseCls}>
+          {inner}
+        </button>
+      ) : (
+        <Link to={item.path} onClick={onNavigate} className={baseCls}>
+          {inner}
+        </Link>
+      )}
       {hasChildren && open && (
         <div className="mt-1 ml-4 pl-3 border-l border-border space-y-0.5">
           {item.children.map((child) => (
