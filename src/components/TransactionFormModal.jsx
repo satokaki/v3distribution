@@ -22,6 +22,8 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type }) 
   const [partnerId, setPartnerId] = useState("");
   const [salespersonId, setSalespersonId] = useState("");
   const [saleType, setSaleType] = useState("retail");
+  const [paymentMethod, setPaymentMethod] = useState("tunai");
+  const [dueDate, setDueDate] = useState("");
   const [items, setItems] = useState([]);
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -104,6 +106,8 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type }) 
       salesperson_id: !isPurchase ? salespersonId : "",
       salesperson_name: !isPurchase ? salespersons.find((s) => s.id === salespersonId)?.name || "" : "",
       sale_type: !isPurchase ? saleType : "",
+      payment_method: paymentMethod,
+      due_date: paymentMethod === "kredit" ? dueDate : "",
       items: items.map((it) => ({ ...it })),
       total,
       note,
@@ -192,6 +196,22 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type }) 
                   </select>
                 </div>
               </>
+            )}
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Metode Bayar</label>
+              <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={inputCls}>
+                <option value="tunai">Tunai</option>
+                <option value="kredit">Kredit</option>
+              </select>
+            </div>
+            {paymentMethod === "kredit" && (
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Jatuh Tempo</label>
+                <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={inputCls} />
+              </div>
+            )}
+            {paymentMethod === "tunai" && (
+              <div className="text-[11px] text-muted-foreground self-end pb-2">Tunai: pilih rekening agar kas bergerak.</div>
             )}
           </div>
 

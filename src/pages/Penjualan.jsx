@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import TransactionFormModal from "@/components/TransactionFormModal";
-import { applyStockMovement } from "@/lib/stockPosting";
+import { postSale } from "@/lib/posting";
 import { writeAuditLog } from "@/lib/audit";
 import { formatCurrency, generateCode } from "@/lib/utils";
 
@@ -39,40 +39,21 @@ export default function Penjualan() {
   }, []);
 
   const handleSubmit = async (payload, action) => {
-    const code = generateCode("PEN", data.length, 5);
-    const status = action === "post" ? "posted" : "draft";
-    const created = await base44.entities.Sale.create({ ...payload, code, status });
-
-    if (action === "post") {
-      const branch = { id: payload.branch_id, code: payload.branch_code };
-      const warehouse = { id: payload.warehouse_id, name: payload.warehouse_name };
-      for (const item of payload.items || []) {
-        await applyStockMovement({
-          product: { product_id: item.product_id, product_name: item.product_name, sku: item.sku },
-          branch,
-          warehouse,
-          type: "out",
-          qty: item.qty,
-          refType: "sale",
-          refId: created.id,
-          refCode: code,
-          note: `Penjualan ${code}`,
-        });
+    try {
+      if (action === "post") {
+        await postSale(payload);
+        toast({ title: "Penjualan diposting: stok, kas/piutang & komisi diperbarui" });
+      } else {
+        const code = generateCode("PEN", data.length, 5);
+        await base44.entities.Sale.create({ ...payload, code, status: "draft" });
+        await writeAuditLog({ action: "create_sale_draft", module: "penjualan", description: `Draft penjualan ${code}`, branchId: payload.branch_id });
+        toast({ title: "Draft penjualan disimpan" });
       }
-      toast({ title: "Penjualan diposting & stok keluar diperbarui" });
-    } else {
-      toast({ title: "Draft penjualan disimpan" });
+      setModalOpen(false);
+      await load();
+    } catch (err) {
+      toast({ title: "Gagal posting penjualan", description: err.message, variant: "destructive" });
     }
-
-    await writeAuditLog({
-      action: action === "post" ? "post_sale" : "create_sale_draft",
-      module: "penjualan",
-      description: `${action === "post" ? "Posting" : "Draft"} penjualan ${code}`,
-      branchId: payload.branch_id,
-    });
-
-    setModalOpen(false);
-    await load();
   };
 
   const handleDelete = async (row) => {
@@ -92,6 +73,7 @@ export default function Penjualan() {
     { key: "customer_name", label: "Pelanggan" },
     { key: "salesperson_name", label: "Sales", render: (v) => v || "—" },
     { key: "sale_type", label: "Tipe", render: (v) => (v ? <span className="capitalize">{v}</span> : "—") },
+    { key: "payment_method", label: "Bayar", render: (v) => v ? <span className="capitalize">{v}</span> : "—" },
     { key: "total", label: "Total", render: (v) => formatCurrency(v || 0), className: "text-right" },
     { key: "status", label: "Status", render: (v) => <StatusBadge value={v} /> },
   ];

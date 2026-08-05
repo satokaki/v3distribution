@@ -42,6 +42,19 @@
       "type": "string",
       "title": "Nama Rekening"
     },
+    "payment_method": {
+      "type": "string",
+      "title": "Metode Bayar",
+      "enum": [
+        "tunai",
+        "kredit"
+      ],
+      "default": "tunai"
+    },
+    "due_date": {
+      "type": "string",
+      "title": "Jatuh Tempo"
+    },
     "items": {
       "type": "array",
       "title": "Item",

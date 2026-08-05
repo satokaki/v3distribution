@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 /**
  * Apply a stock movement (in/out) for a product in a warehouse.
  * Updates StockBalance and appends a StockLedger entry.
+ * Throws if an "out" movement would drive the balance below zero.
  */
 export async function applyStockMovement({
   product,
@@ -20,14 +21,24 @@ export async function applyStockMovement({
   const filters = { product_id: productId, warehouse_id: warehouse.id };
   const existing = await base44.entities.StockBalance.filter(filters);
   let balance = existing[0];
-  let newQty;
   const dir = direction || (type === "in" ? "in" : "out");
 
+  let newQty;
   if (balance) {
     newQty = dir === "in" ? balance.quantity + qty : balance.quantity - qty;
-    await base44.entities.StockBalance.update(balance.id, { quantity: newQty });
   } else {
     newQty = dir === "in" ? qty : -qty;
+  }
+
+  // Guard: prevent negative stock on out movements
+  if (dir === "out" && newQty < 0) {
+    const avail = balance ? balance.quantity : 0;
+    throw new Error(`Stok tidak cukup untuk ${product.product_name || product.sku || productId} (tersedia ${avail}, butuh ${qty})`);
+  }
+
+  if (balance) {
+    await base44.entities.StockBalance.update(balance.id, { quantity: newQty });
+  } else {
     balance = await base44.entities.StockBalance.create({
       product_id: productId,
       product_name: product.product_name || product.name,

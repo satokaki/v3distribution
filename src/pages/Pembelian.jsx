@@ -4,7 +4,7 @@ import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import TransactionFormModal from "@/components/TransactionFormModal";
-import { applyStockMovement } from "@/lib/stockPosting";
+import { postPurchase } from "@/lib/posting";
 import { writeAuditLog } from "@/lib/audit";
 import { formatCurrency, generateCode } from "@/lib/utils";
 
@@ -41,40 +41,21 @@ export default function Pembelian() {
   }, []);
 
   const handleSubmit = async (payload, action) => {
-    const code = generateCode("PMB", data.length, 5);
-    const status = action === "post" ? "posted" : "draft";
-    const created = await base44.entities.Purchase.create({ ...payload, code, status });
-
-    if (action === "post") {
-      const branch = { id: payload.branch_id, code: payload.branch_code };
-      const warehouse = { id: payload.warehouse_id, name: payload.warehouse_name };
-      for (const item of payload.items || []) {
-        await applyStockMovement({
-          product: { product_id: item.product_id, product_name: item.product_name, sku: item.sku },
-          branch,
-          warehouse,
-          type: "in",
-          qty: item.qty,
-          refType: "purchase",
-          refId: created.id,
-          refCode: code,
-          note: `Pembelian ${code}`,
-        });
+    try {
+      if (action === "post") {
+        await postPurchase(payload);
+        toast({ title: "Pembelian diposting: stok, kas/hutang & harga beli diperbarui" });
+      } else {
+        const code = generateCode("PMB", data.length, 5);
+        await base44.entities.Purchase.create({ ...payload, code, status: "draft" });
+        await writeAuditLog({ action: "create_purchase_draft", module: "pembelian", description: `Draft pembelian ${code}`, branchId: payload.branch_id });
+        toast({ title: "Draft pembelian disimpan" });
       }
-      toast({ title: "Pembelian diposting & stok masuk diperbarui" });
-    } else {
-      toast({ title: "Draft pembelian disimpan" });
+      setModalOpen(false);
+      await load();
+    } catch (err) {
+      toast({ title: "Gagal posting pembelian", description: err.message, variant: "destructive" });
     }
-
-    await writeAuditLog({
-      action: action === "post" ? "post_purchase" : "create_purchase_draft",
-      module: "pembelian",
-      description: `${action === "post" ? "Posting" : "Draft"} pembelian ${code}`,
-      branchId: payload.branch_id,
-    });
-
-    setModalOpen(false);
-    await load();
   };
 
   const handleDelete = async (row) => {
@@ -93,6 +74,7 @@ export default function Pembelian() {
     { key: "date", label: "Tanggal", render: (v) => (v ? v.slice(0, 10) : "—") },
     { key: "supplier_name", label: "Supplier" },
     { key: "warehouse_name", label: "Gudang" },
+    { key: "payment_method", label: "Bayar", render: (v) => v ? <span className="capitalize">{v}</span> : "—" },
     { key: "total", label: "Total", render: (v) => formatCurrency(v || 0), className: "text-right" },
     { key: "status", label: "Status", render: (v) => <StatusBadge value={v} /> },
   ];
