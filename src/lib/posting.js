@@ -3,17 +3,25 @@ import { applyStockMovement } from "@/lib/stockPosting";
 import { writeAuditLog } from "@/lib/audit";
 import { generateCode } from "@/lib/utils";
 
-/** Generate a sequential code based on current record count (best-effort, client-side). */
-async function seqCode(entityName, prefix, pad = 5) {
+function ymd(dateStr) {
+  if (dateStr && dateStr.length >= 10) return dateStr.slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** Generate kode harian: PREFIX-YYYYMMDD-XXXX (best-effort, client-side). */
+async function seqCode(entityName, prefix, dateStr) {
+  const day = ymd(dateStr).replace(/-/g, "");
   const list = await base44.entities[entityName].list("-created_date", 500);
-  return generateCode(prefix, (list || []).length, pad);
+  const prefixDay = `${prefix}-${day}-`;
+  const count = (list || []).filter((r) => (r.code || "").startsWith(prefixDay)).length;
+  return `${prefix}-${day}-${String(count + 1).padStart(4, "0")}`;
 }
 
 /** Create a CashTransaction and update the related Account balance. Returns { id, balanceAfter }. */
 export async function createCashTransaction({ date, account, branch, type, category, amount, refType, refId, refCode, description }) {
   const prevBalance = account.current_balance || 0;
   const balanceAfter = prevBalance + (type === "in" ? amount : -amount);
-  const code = await seqCode("CashTransaction", "KAS");
+  const code = await seqCode("CashTransaction", "KAS", date);
   const created = await base44.entities.CashTransaction.create({
     code,
     date,
@@ -68,7 +76,7 @@ export async function postSale(payload) {
     }
   }
 
-  const saleCode = await seqCode("Sale", "PEN");
+  const saleCode = await seqCode("Sale", "PEN", payload.date);
   const created = await base44.entities.Sale.create({ ...payload, code: saleCode, status: "posted" });
 
   const moved = [];
@@ -103,7 +111,7 @@ export async function postSale(payload) {
         accountReversed = { id: acc.id, prev: res.prevBalance };
       }
     } else if (paymentMethod === "kredit") {
-      const rCode = await seqCode("Receivable", "PTG");
+      const rCode = await seqCode("Receivable", "PTG", payload.date);
       const rv = await base44.entities.Receivable.create({
         code: rCode, date: payload.date, due_date: payload.due_date || "",
         customer_id: payload.customer_id, customer_name: payload.customer_name,
@@ -126,7 +134,7 @@ export async function postSale(payload) {
       const sp = (await base44.entities.Salesperson.filter({ id: payload.salesperson_id }))[0];
       const rate = sp?.commission_rate || 0;
       if (rate > 0) {
-        const cCode = await seqCode("Commission", "KMS");
+        const cCode = await seqCode("Commission", "KMS", payload.date);
         const cm = await base44.entities.Commission.create({
           code: cCode, date: payload.date,
           salesperson_id: payload.salesperson_id, salesperson_name: payload.salesperson_name,
@@ -173,7 +181,7 @@ export async function postPurchase(payload) {
   const items = payload.items || [];
   const paymentMethod = payload.payment_method || "tunai";
 
-  const purCode = await seqCode("Purchase", "PMB");
+  const purCode = await seqCode("Purchase", "PMB", payload.date);
   const created = await base44.entities.Purchase.create({ ...payload, code: purCode, status: "posted" });
 
   const moved = [];
@@ -208,7 +216,7 @@ export async function postPurchase(payload) {
         accountReversed = { id: acc.id, prev: res.prevBalance };
       }
     } else if (paymentMethod === "kredit") {
-      const pCode = await seqCode("Payable", "HTG");
+      const pCode = await seqCode("Payable", "HTG", payload.date);
       const pv = await base44.entities.Payable.create({
         code: pCode, date: payload.date, due_date: payload.due_date || "",
         supplier_id: payload.supplier_id, supplier_name: payload.supplier_name,

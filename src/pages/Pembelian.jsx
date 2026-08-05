@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
@@ -6,10 +6,12 @@ import DataTable from "@/components/DataTable";
 import TransactionFormModal from "@/components/TransactionFormModal";
 import TransactionDetailModal from "@/components/TransactionDetailModal";
 import TransactionActionMenu from "@/components/TransactionActionMenu";
+import TransactionFilters from "@/components/TransactionFilters";
 import { printTransaction } from "@/components/PrintTransaction";
 import { postPurchase } from "@/lib/posting";
 import { writeAuditLog } from "@/lib/audit";
-import { formatCurrency, generateCode } from "@/lib/utils";
+import { generateDailyCode } from "@/lib/transactionCode";
+import { formatCurrency } from "@/lib/utils";
 
 function StatusBadge({ value }) {
   const map = {
@@ -27,6 +29,9 @@ export default function Pembelian() {
   const [editing, setEditing] = useState(null);
   const [viewing, setViewing] = useState(null);
   const [busyId, setBusyId] = useState(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [status, setStatus] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -43,6 +48,16 @@ export default function Pembelian() {
   useEffect(() => {
     load();
   }, []);
+
+  const filtered = useMemo(() => {
+    return data.filter((r) => {
+      const d = (r.date || "").slice(0, 10);
+      if (dateFrom && d < dateFrom) return false;
+      if (dateTo && d > dateTo) return false;
+      if (status && r.status !== status) return false;
+      return true;
+    });
+  }, [data, dateFrom, dateTo, status]);
 
   const openNew = () => {
     setEditing(null);
@@ -69,7 +84,7 @@ export default function Pembelian() {
           await writeAuditLog({ action: "update_purchase_draft", module: "pembelian", description: `Edit draft pembelian`, branchId: payload.branch_id });
           toast({ type: "success", title: "Draft pembelian diperbarui" });
         } else {
-          const code = generateCode("PMB", data.length, 5);
+          const code = await generateDailyCode("Purchase", "PMB", payload.date);
           await base44.entities.Purchase.create({ ...payload, code, status: "draft" });
           await writeAuditLog({ action: "create_purchase_draft", module: "pembelian", description: `Draft pembelian ${code}`, branchId: payload.branch_id });
           toast({ type: "success", title: "Draft pembelian disimpan" });
@@ -141,9 +156,19 @@ export default function Pembelian() {
           </button>
         }
       />
+      <TransactionFilters
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        onDateFrom={setDateFrom}
+        onDateTo={setDateTo}
+        status={status}
+        onStatus={setStatus}
+        statusOptions={[{ value: "draft", label: "Draft" }, { value: "posted", label: "Posted" }]}
+        onClear={() => { setDateFrom(""); setDateTo(""); setStatus(""); }}
+      />
       <DataTable
         columns={columns}
-        data={data}
+        data={filtered}
         loading={loading}
         searchKeys={["code", "supplier_name", "note"]}
         searchPlaceholder="Cari kode / supplier..."
