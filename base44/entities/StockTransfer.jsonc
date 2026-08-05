@@ -1,0 +1,184 @@
+{
+  "name": "StockTransfer",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "title": "Kode Mutasi"
+    },
+    "date": {
+      "type": "string",
+      "title": "Tanggal"
+    },
+    "from_branch_id": {
+      "type": "string",
+      "title": "Cabang Asal"
+    },
+    "from_branch_code": {
+      "type": "string",
+      "title": "Kode Asal"
+    },
+    "from_branch_name": {
+      "type": "string",
+      "title": "Nama Asal"
+    },
+    "from_warehouse_id": {
+      "type": "string",
+      "title": "Gudang Asal"
+    },
+    "from_warehouse_name": {
+      "type": "string",
+      "title": "Nama Gudang Asal"
+    },
+    "to_branch_id": {
+      "type": "string",
+      "title": "Cabang Tujuan"
+    },
+    "to_branch_code": {
+      "type": "string",
+      "title": "Kode Tujuan"
+    },
+    "to_branch_name": {
+      "type": "string",
+      "title": "Nama Tujuan"
+    },
+    "to_warehouse_id": {
+      "type": "string",
+      "title": "Gudang Tujuan"
+    },
+    "to_warehouse_name": {
+      "type": "string",
+      "title": "Nama Gudang Tujuan"
+    },
+    "items": {
+      "type": "array",
+      "title": "Item",
+      "items": {
+        "type": "object",
+        "properties": {
+          "product_id": {
+            "type": "string"
+          },
+          "product_name": {
+            "type": "string"
+          },
+          "sku": {
+            "type": "string"
+          },
+          "qty": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "total_qty": {
+      "type": "number",
+      "title": "Total Qty",
+      "default": 0
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "draft",
+        "posted"
+      ],
+      "default": "draft"
+    },
+    "note": {
+      "type": "string",
+      "title": "Catatan"
+    }
+  },
+  "required": [
+    "code",
+    "date",
+    "from_branch_id",
+    "from_warehouse_id",
+    "to_branch_id",
+    "to_warehouse_id",
+    "status"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.from_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.to_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.from_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.to_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.from_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.to_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "data.from_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.to_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        }
+      ]
+    }
+  }
+}

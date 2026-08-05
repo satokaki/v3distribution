@@ -26,6 +26,7 @@ import Stock from '@/pages/Stock';
 import StockCard from '@/pages/StockCard';
 import Pembelian from '@/pages/Pembelian';
 import Penjualan from '@/pages/Penjualan';
+import Mutasi from '@/pages/Mutasi';
 import PengaturanUser from '@/pages/PengaturanUser';
 // Add page imports here
 
@@ -74,6 +75,7 @@ const AuthenticatedApp = () => {
           <Route path="/kartu-stok" element={<StockCard />} />
           <Route path="/pembelian" element={<Pembelian />} />
           <Route path="/penjualan" element={<Penjualan />} />
+          <Route path="/mutasi" element={<Mutasi />} />
           <Route path="/pengaturan/user" element={<PengaturanUser />} />
         </Route>
       </Route>

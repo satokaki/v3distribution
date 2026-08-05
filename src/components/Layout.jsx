@@ -41,7 +41,7 @@ const menuGroups = [
     items: [
       { label: "Penjualan", path: "/penjualan", icon: ShoppingCart },
       { label: "Pembelian", path: "/pembelian", icon: PackagePlus },
-      { label: "Mutasi Cabang", path: "/mutasi", icon: ArrowLeftRight, soon: true },
+      { label: "Mutasi Cabang", path: "/mutasi", icon: ArrowLeftRight },
       { label: "Jual Beli Cabang", path: "/jual-beli-cabang", icon: Repeat2, soon: true },
     ],
   },

@@ -9,6 +9,7 @@ export async function applyStockMovement({
   branch,
   warehouse,
   type,
+  direction,
   qty,
   refType,
   refId,
@@ -20,12 +21,13 @@ export async function applyStockMovement({
   const existing = await base44.entities.StockBalance.filter(filters);
   let balance = existing[0];
   let newQty;
+  const dir = direction || (type === "in" ? "in" : "out");
 
   if (balance) {
-    newQty = type === "in" ? balance.quantity + qty : balance.quantity - qty;
+    newQty = dir === "in" ? balance.quantity + qty : balance.quantity - qty;
     await base44.entities.StockBalance.update(balance.id, { quantity: newQty });
   } else {
-    newQty = type === "in" ? qty : -qty;
+    newQty = dir === "in" ? qty : -qty;
     balance = await base44.entities.StockBalance.create({
       product_id: productId,
       product_name: product.product_name || product.name,
