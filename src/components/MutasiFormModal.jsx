@@ -10,7 +10,7 @@ const emptyItem = () => ({ product_id: "", product_name: "", sku: "", qty: 1, un
 
 export default function MutasiFormModal({ open, onClose, onSaved, editing = null }) {
   const { toast } = useToast();
-  const { accessibleBranches, isSuperAdmin } = useBranchContext();
+  const { accessibleBranches, isSuperAdmin, operationalBranchId } = useBranchContext();
   const [branches, setBranches] = useState([]);
   const [products, setProducts] = useState([]);
   const [destinationId, setDestinationId] = useState("");
@@ -20,7 +20,7 @@ export default function MutasiFormModal({ open, onClose, onSaved, editing = null
   const [submitting, setSubmitting] = useState(false);
   const [approvalRequestId, setApprovalRequestId] = useState(() => crypto.randomUUID());
 
-  const sourceMapping = accessibleBranches.find((row) => row.is_default) || accessibleBranches[0];
+  const sourceMapping = accessibleBranches.find((row) => row.branch_id === operationalBranchId);
   const sourceId = sourceMapping?.branch_id || "";
   const sourceName = sourceMapping?.branch_name || sourceMapping?.branch_code || "Cabang belum dipetakan";
   const canSave = Boolean(sourceMapping) && (isSuperAdmin || (editing ? sourceMapping?.can_edit : sourceMapping?.can_create));

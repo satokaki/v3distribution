@@ -12,7 +12,7 @@ const CATEGORIES = ["Penjualan", "Pembelian", "Mutasi Antar Cabang", "Gaji & Upa
 
 export default function CashTransactionFormModal({ open, onClose, onSaved, existingCount }) {
   const { toast } = useToast();
-  const { activeBranchId, isSuperAdmin } = useBranchContext();
+  const { operationalBranchId } = useBranchContext();
   const [accounts, setAccounts] = useState([]);
   const [branches, setBranches] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -36,15 +36,15 @@ export default function CashTransactionFormModal({ open, onClose, onSaved, exist
           base44.entities.Account.list(),
           base44.entities.Branch.list(),
         ]);
-        const allowed = isSuperAdmin ? b : b.filter((x) => x.id === activeBranchId);
+        const allowed = (b || []).filter((x) => x.id === operationalBranchId);
         setAccounts((a || []).filter((x) => x.is_active !== false));
         setBranches(allowed);
-        setForm((f) => ({ ...f, branch_id: f.branch_id || allowed[0]?.id || "" }));
+        setForm((f) => ({ ...f, branch_id: operationalBranchId, account_id: f.branch_id === operationalBranchId ? f.account_id : "" }));
       } catch {
         toast({ title: "Gagal memuat data master", variant: "destructive" });
       }
     })();
-  }, [open]);
+  }, [open, operationalBranchId, toast]);
 
   if (!open) return null;
 
@@ -121,7 +121,7 @@ export default function CashTransactionFormModal({ open, onClose, onSaved, exist
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5">Cabang</label>
-              <select value={form.branch_id} onChange={(e) => setForm({ ...form, branch_id: e.target.value, account_id: "" })} disabled={!isSuperAdmin} className={inputCls}>
+              <select value={form.branch_id} disabled className={inputCls}>
                 <option value="">— pilih —</option>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.name}</option>)}
               </select>

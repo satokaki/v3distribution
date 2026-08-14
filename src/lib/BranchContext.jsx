@@ -8,6 +8,7 @@ import {
 } from "@/lib/authHelpers";
 import { writeAuditLog } from "@/lib/audit";
 import { useAuth } from "@/lib/AuthContext";
+import { initialReadScopeBranchId, resolveOperationalBranchId } from "@/lib/branchContextCore";
 
 const BranchContext = createContext(null);
 const LS_KEY = "v3pos.head_office_branch_id";
@@ -18,7 +19,8 @@ export function BranchProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [accessibleBranches, setAccessibleBranches] = useState([]);
   const [rolePermissions, setRolePermissions] = useState([]);
-  const [activeBranchId, setActiveBranchId] = useState("");
+  const [operationalBranchId, setOperationalBranchId] = useState("");
+  const [readScopeBranchId, setReadScopeBranchIdState] = useState("");
 
   const isSuper = isSuperAdmin(user);
 
@@ -34,25 +36,17 @@ export function BranchProvider({ children }) {
       setRolePermissions(rp);
       setAccessibleBranches(ab);
 
-      // Tentukan cabang aktif awal
-      let chosen = "";
-      if (sa) {
-        const stored = localStorage.getItem(LS_KEY);
-        chosen = stored === "all" || ab.some((b) => b.branch_id === stored) ? stored : "all";
-      } else {
-        const def = ab.find((b) => b.is_default);
-        // Operational users are always locked to their mapped default branch.
-        const mappedDefault = ab.find((b) => b.branch_id === u.default_branch_id);
-        chosen = mappedDefault?.branch_id || def?.branch_id || ab[0]?.branch_id || "";
-      }
-      setActiveBranchId(chosen);
+      const operational = resolveOperationalBranchId(u, ab);
+      setOperationalBranchId(operational);
+      setReadScopeBranchIdState(initialReadScopeBranchId({ isSuperAdmin: sa, operationalBranchId: operational, storedScope: localStorage.getItem(LS_KEY), mappings: ab }));
       setLoading(false);
     })();
   }, [authenticatedUser]);
 
-  const setActiveBranch = useCallback((id) => {
+  const setReadScopeBranchId = useCallback((id) => {
     if (!isSuper) return;
-    setActiveBranchId(id);
+    if (id !== "all" && !accessibleBranches.some((row) => row.branch_id === id)) return;
+    setReadScopeBranchIdState(id);
     localStorage.setItem(LS_KEY, id);
     writeAuditLog({
       action: "switch_branch",
@@ -60,10 +54,11 @@ export function BranchProvider({ children }) {
       description: `Ganti cabang aktif ke ${id}`,
       branchId: id === "all" ? "" : id,
     });
-  }, [isSuper]);
+  }, [accessibleBranches, isSuper]);
 
-  const activeBranch = accessibleBranches.find((b) => b.branch_id === activeBranchId);
-  const isAllBranches = isSuper && activeBranchId === "all";
+  const operationalBranch = accessibleBranches.find((b) => b.branch_id === operationalBranchId);
+  const readScopeBranch = accessibleBranches.find((b) => b.branch_id === readScopeBranchId);
+  const isAllBranches = isSuper && readScopeBranchId === "all";
 
   const value = {
     user,
@@ -71,14 +66,20 @@ export function BranchProvider({ children }) {
     isSuperAdmin: isSuper,
     accessibleBranches,
     rolePermissions,
-    activeBranchId,
-    activeBranch,
+    operationalBranchId,
+    operationalBranch,
+    readScopeBranchId,
+    readScopeBranch,
+    setReadScopeBranchId,
+    // Compatibility alias: activeBranchId is READ SCOPE only. Transactions must use operationalBranchId.
+    activeBranchId: readScopeBranchId,
+    activeBranch: readScopeBranch,
     isAllBranches,
-    hasBranchAssignment: isSuper || !!activeBranchId,
+    hasBranchAssignment: !!operationalBranchId,
     canSwitchBranch: isSuper,
-    setActiveBranch,
+    setActiveBranch: setReadScopeBranchId,
     hasPermission: (perm) => hasPermission(rolePermissions, perm),
-    branchCan: (perm) => branchCan(activeBranch, perm),
+    branchCan: (perm) => branchCan(operationalBranch, perm),
   };
 
   return <BranchContext.Provider value={value}>{children}</BranchContext.Provider>;

@@ -3,7 +3,7 @@ import { useBranchContext } from "@/lib/BranchContext";
 import { ChevronDown, Building2, Check } from "lucide-react";
 
 export default function BranchSelector() {
-  const { isSuperAdmin, canSwitchBranch, accessibleBranches, activeBranchId, setActiveBranch, isAllBranches } = useBranchContext();
+  const { isSuperAdmin, canSwitchBranch, accessibleBranches, readScopeBranchId, setReadScopeBranchId, isAllBranches } = useBranchContext();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -15,7 +15,7 @@ export default function BranchSelector() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const activeName = accessibleBranches.find((b) => b.branch_id === activeBranchId)?.branch_name;
+  const activeName = accessibleBranches.find((b) => b.branch_id === readScopeBranchId)?.branch_name;
   const currentLabel = isAllBranches ? "Semua Cabang" : activeName || (accessibleBranches[0]?.branch_name || "—");
   const showSelector = canSwitchBranch;
 
@@ -43,7 +43,7 @@ export default function BranchSelector() {
         <div className="absolute right-0 mt-1 w-60 rounded-lg border border-border bg-card shadow-lg z-50 py-1 max-h-72 overflow-y-auto">
           {isSuperAdmin && (
             <button
-              onClick={() => { setActiveBranch("all"); setOpen(false); }}
+              onClick={() => { setReadScopeBranchId("all"); setOpen(false); }}
               className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-accent text-left"
             >
               <span className="font-medium">Semua Cabang</span>
@@ -54,7 +54,7 @@ export default function BranchSelector() {
           {accessibleBranches.map((b) => (
             <button
               key={b.branch_id}
-              onClick={() => { setActiveBranch(b.branch_id); setOpen(false); }}
+              onClick={() => { setReadScopeBranchId(b.branch_id); setOpen(false); }}
               className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-accent text-left"
             >
               <span className="flex flex-col items-start">
@@ -63,7 +63,7 @@ export default function BranchSelector() {
                   {b.branch_code} · {b.is_branch_manager ? "Kepala Cabang" : b.assignment_role || ""}
                 </span>
               </span>
-              {activeBranchId === b.branch_id && <Check className="w-4 h-4 text-primary" />}
+              {readScopeBranchId === b.branch_id && <Check className="w-4 h-4 text-primary" />}
             </button>
           ))}
           {accessibleBranches.length === 0 && !isSuperAdmin && (
