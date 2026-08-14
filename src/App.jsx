@@ -26,6 +26,7 @@ import Stock from '@/pages/Stock';
 import StockCard from '@/pages/StockCard';
 import Pembelian from '@/pages/Pembelian';
 import Penjualan from '@/pages/Penjualan';
+import SalesPOSNew from '@/pages/SalesPOSNew';
 import Mutasi from '@/pages/Mutasi';
 import JualBeliCabang from '@/pages/JualBeliCabang';
 import BukuKas from '@/pages/BukuKas';
@@ -82,7 +83,8 @@ const AuthenticatedApp = () => {
           <Route path="/stok" element={<PermissionGuard permission="inventory.view"><Stock /></PermissionGuard>} />
           <Route path="/kartu-stok" element={<PermissionGuard permission="inventory.view"><StockCard /></PermissionGuard>} />
           <Route path="/pembelian" element={<PermissionGuard permission="purchase.view"><Pembelian /></PermissionGuard>} />
-          <Route path="/penjualan" element={<PermissionGuard permission="sales.view"><Penjualan /></PermissionGuard>} />
+          <Route path="/penjualan" element={<PermissionGuard permission="sales.create"><SalesPOSNew /></PermissionGuard>} />
+          <Route path="/laporan/penjualan" element={<PermissionGuard permission="sales.view"><Penjualan reportOnly /></PermissionGuard>} />
           <Route path="/mutasi" element={<PermissionGuard permission="transfer.view"><Mutasi /></PermissionGuard>} />
           <Route path="/jual-beli-cabang" element={<PermissionGuard permission="transfer.view"><JualBeliCabang /></PermissionGuard>} />
           <Route path="/buku-kas" element={<PermissionGuard permission="cash.view"><BukuKas /></PermissionGuard>} />
