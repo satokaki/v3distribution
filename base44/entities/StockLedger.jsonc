@@ -18,6 +18,14 @@
       "type": "string",
       "title": "Cabang"
     },
+    "balance_scope": {
+      "type": "string",
+      "title": "Cakupan Saldo",
+      "enum": [
+        "branch",
+        "warehouse_legacy"
+      ]
+    },
     "branch_code": {
       "type": "string",
       "title": "Kode Cabang"
@@ -44,6 +52,10 @@
       ],
       "default": "in"
     },
+    "transaction_type": {
+      "type": "string",
+      "title": "Tipe Transaksi V3"
+    },
     "ref_type": {
       "type": "string",
       "title": "Jenis Referensi"
@@ -52,9 +64,17 @@
       "type": "string",
       "title": "ID Referensi"
     },
+    "transaction_id": {
+      "type": "string",
+      "title": "ID Transaksi V3"
+    },
     "ref_code": {
       "type": "string",
       "title": "Kode Referensi"
+    },
+    "reference_number": {
+      "type": "string",
+      "title": "Nomor Referensi V3"
     },
     "quantity": {
       "type": "number",
@@ -73,11 +93,15 @@
     "date": {
       "type": "string",
       "title": "Tanggal"
+    },
+    "transaction_date": {
+      "type": "string",
+      "title": "Tanggal Transaksi V3"
     }
   },
   "required": [
     "product_id",
-    "warehouse_id",
+    "branch_id",
     "movement_type",
     "quantity",
     "date"

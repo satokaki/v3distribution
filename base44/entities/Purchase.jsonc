@@ -6,6 +6,10 @@
       "type": "string",
       "title": "Kode Pembelian"
     },
+    "posting_request_id": {
+      "type": "string",
+      "title": "Posting Request ID"
+    },
     "date": {
       "type": "string",
       "title": "Tanggal"
@@ -135,7 +139,6 @@
     "code",
     "date",
     "branch_id",
-    "warehouse_id",
     "status"
   ],
   "rls": {

@@ -8,6 +8,13 @@
     "build": "vite build",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
+    "test:stock-compat": "node --test tests/branchStockBalance.test.mjs",
+    "test:backend-posting": "node --experimental-strip-types --test tests/backendPosting.test.mjs",
+    "test:sales-branch-only": "node --test tests/salesBranchOnly.test.mjs",
+    "test:purchase-branch-only": "node --test tests/purchaseBranchOnly.test.mjs",
+    "test:inventory-branch-only": "node --test tests/inventoryBranchOnly.test.mjs",
+    "test:stock-card-branch-only": "node --test tests/stockCardBranchOnly.test.mjs",
+    "test:stock-transfer-branch-only": "node --experimental-strip-types --test tests/stockTransferBranchOnly.test.mjs",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },

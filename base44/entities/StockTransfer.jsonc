@@ -6,6 +6,10 @@
       "type": "string",
       "title": "Kode Mutasi"
     },
+    "transfer_number": {
+      "type": "string",
+      "title": "Nomor Mutasi"
+    },
     "date": {
       "type": "string",
       "title": "Tanggal"
@@ -13,6 +17,18 @@
     "from_branch_id": {
       "type": "string",
       "title": "Cabang Asal"
+    },
+    "source_branch_id": {
+      "type": "string",
+      "title": "Cabang Asal V3"
+    },
+    "source_branch_code": {
+      "type": "string",
+      "title": "Kode Cabang Asal V3"
+    },
+    "source_branch_name": {
+      "type": "string",
+      "title": "Nama Cabang Asal V3"
     },
     "from_branch_code": {
       "type": "string",
@@ -33,6 +49,18 @@
     "to_branch_id": {
       "type": "string",
       "title": "Cabang Tujuan"
+    },
+    "destination_branch_id": {
+      "type": "string",
+      "title": "Cabang Tujuan V3"
+    },
+    "destination_branch_code": {
+      "type": "string",
+      "title": "Kode Cabang Tujuan V3"
+    },
+    "destination_branch_name": {
+      "type": "string",
+      "title": "Nama Cabang Tujuan V3"
     },
     "to_branch_code": {
       "type": "string",
@@ -68,6 +96,21 @@
           "qty": {
             "type": "number"
           },
+          "requested_qty": {
+            "type": "number"
+          },
+          "approved_qty": {
+            "type": "number"
+          },
+          "received_qty": {
+            "type": "number"
+          },
+          "difference_qty": {
+            "type": "number"
+          },
+          "in_transit_qty": {
+            "type": "number"
+          },
           "unit": {
             "type": "string"
           }
@@ -85,6 +128,8 @@
       "title": "Status",
       "enum": [
         "draft",
+        "approved",
+        "received",
         "posted"
       ],
       "default": "draft"
@@ -92,15 +137,43 @@
     "note": {
       "type": "string",
       "title": "Catatan"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Catatan V3"
+    },
+    "receiving_notes": {
+      "type": "string",
+      "title": "Catatan Penerimaan"
+    },
+    "approved_at": {
+      "type": "string",
+      "title": "Waktu Persetujuan"
+    },
+    "approved_by": {
+      "type": "string",
+      "title": "Disetujui Oleh"
+    },
+    "received_at": {
+      "type": "string",
+      "title": "Waktu Penerimaan"
+    },
+    "received_by": {
+      "type": "string",
+      "title": "Diterima Oleh"
+    },
+    "approval_request_id": {
+      "type": "string",
+      "title": "Idempotency Approval"
+    },
+    "receiving_request_id": {
+      "type": "string",
+      "title": "Idempotency Penerimaan"
     }
   },
   "required": [
     "code",
     "date",
-    "from_branch_id",
-    "from_warehouse_id",
-    "to_branch_id",
-    "to_warehouse_id",
     "status"
   ],
   "rls": {
@@ -117,68 +190,36 @@
           }
         },
         {
+          "data.source_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
           "data.to_branch_id": {
+            "$in": "{{user.data.accessible_branch_ids}}"
+          }
+        },
+        {
+          "data.destination_branch_id": {
             "$in": "{{user.data.accessible_branch_ids}}"
           }
         }
       ]
     },
     "create": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "data.from_branch_id": {
-            "$in": "{{user.data.accessible_branch_ids}}"
-          }
-        },
-        {
-          "data.to_branch_id": {
-            "$in": "{{user.data.accessible_branch_ids}}"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "update": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "data.from_branch_id": {
-            "$in": "{{user.data.accessible_branch_ids}}"
-          }
-        },
-        {
-          "data.to_branch_id": {
-            "$in": "{{user.data.accessible_branch_ids}}"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     },
     "delete": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "data.from_branch_id": {
-            "$in": "{{user.data.accessible_branch_ids}}"
-          }
-        },
-        {
-          "data.to_branch_id": {
-            "$in": "{{user.data.accessible_branch_ids}}"
-          }
-        }
-      ]
+      "user_condition": {
+        "role": "admin"
+      }
     }
   }
 }

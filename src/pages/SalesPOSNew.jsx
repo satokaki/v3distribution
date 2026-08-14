@@ -7,6 +7,7 @@ import { postSale } from "@/lib/posting";
 import { generateDailyCode } from "@/lib/transactionCode";
 import { writeAuditLog } from "@/lib/audit";
 import { formatCurrency } from "@/lib/utils";
+import { getBranchProductBalance } from "@/lib/branchStockBalance";
 import { Barcode, Banknote, CreditCard, FileText, Landmark, Minus, Plus, QrCode, ReceiptText, RefreshCcw, Save, Search, Trash2, UserRound } from "lucide-react";
 
 const PAYMENT_CHANNELS = [
@@ -21,7 +22,8 @@ export default function SalesPOSNew() {
   const { toast } = useToast();
   const { activeBranchId, activeBranch, isAllBranches } = useBranchContext();
   const barcodeRef = useRef(null);
-  const [master, setMaster] = useState({ products: [], customers: [], salespersons: [], warehouses: [], accounts: [], receivables: [] });
+  const [master, setMaster] = useState({ products: [], customers: [], salespersons: [], accounts: [], receivables: [] });
+  const [stockByProduct, setStockByProduct] = useState({});
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -49,15 +51,14 @@ export default function SalesPOSNew() {
     async function load() {
       setLoading(true);
       try {
-        const [products, customers, salespersons, warehouses, accounts, receivables] = await Promise.all([
+        const [products, customers, salespersons, accounts, receivables] = await Promise.all([
           base44.entities.Product.list("name", 500), base44.entities.Customer.list("name", 500),
           base44.entities.Salesperson.filter({ branch_id: branchId, is_active: true }, "name", 200),
-          base44.entities.Warehouse.filter({ branch_id: branchId, is_active: true }, "name", 100),
           base44.entities.Account.filter({ branch_id: branchId, is_active: true }, "name", 100),
           base44.entities.Receivable.filter({ branch_id: branchId }, "-due_date", 500),
         ]);
         if (!cancelled) {
-          setMaster({ products: (products || []).filter((p) => p.is_active !== false), customers: customers || [], salespersons: salespersons || [], warehouses: warehouses || [], accounts: accounts || [], receivables: receivables || [] });
+          setMaster({ products: (products || []).filter((p) => p.is_active !== false), customers: customers || [], salespersons: salespersons || [], accounts: accounts || [], receivables: receivables || [] });
           setSalespersonId((salespersons || [])[0]?.id || "");
           setAccountId((accounts || []).find((a) => a.account_type === "kas")?.id || "");
           await loadDrafts();
@@ -70,7 +71,6 @@ export default function SalesPOSNew() {
   }, [branchId, toast]);
 
   const customer = master.customers.find((row) => row.id === customerId);
-  const warehouse = master.warehouses[0];
   const salesperson = master.salespersons.find((row) => row.id === salespersonId);
   const account = master.accounts.find((row) => row.id === accountId);
   const needsAccount = transactionType === "cash" && paymentChannel !== "cash";
@@ -94,7 +94,15 @@ export default function SalesPOSNew() {
     return { price: product.retail_price || product.grosir_price || 0, source: product.retail_price ? "retail_tempo" : "default_grosir" };
   };
 
-  const addProduct = (product) => {
+  const addProduct = async (product) => {
+    if (!branchId) return toast({ title: "Cabang user belum tersedia", variant: "destructive" });
+    try {
+      const resolved = await getBranchProductBalance(branchId, product.id);
+      setStockByProduct((current) => ({ ...current, [product.id]: resolved.quantity }));
+    } catch (error) {
+      toast({ title: "Gagal membaca stok cabang", description: error.message, variant: "destructive" });
+      return;
+    }
     const priced = priceFor(product);
     setItems((current) => {
       const found = current.find((item) => item.product_id === product.id);
@@ -109,10 +117,10 @@ export default function SalesPOSNew() {
   }, [transactionType]);
 
   const updateItem = (id, patch) => setItems((current) => current.map((item) => item.product_id === id ? { ...item, ...patch, qty: Math.max(1, Number(patch.qty ?? item.qty)), discount_percent: Math.min(100, Math.max(0, Number(patch.discount_percent ?? item.discount_percent))) } : item));
-  const reset = () => { setEditingDraftId(""); setTransactionType("cash"); setPaymentChannel("cash"); setCustomerId(""); setNote(""); setPaid(0); setItems([]); setQuery(""); barcodeRef.current?.focus(); };
+  const reset = () => { setEditingDraftId(""); setTransactionType("cash"); setPaymentChannel("cash"); setCustomerId(""); setNote(""); setPaid(0); setItems([]); setStockByProduct({}); setQuery(""); barcodeRef.current?.focus(); };
 
   const payload = () => ({
-    date: localDate(), branch_id: branchId, branch_code: activeBranch?.branch_code || "", warehouse_id: warehouse?.id || "", warehouse_name: warehouse?.name || "",
+    date: localDate(), branch_id: branchId, branch_code: activeBranch?.branch_code || "",
     salesperson_id: salespersonId, salesperson_name: salesperson?.name || "", customer_id: customerId, customer_name: customer?.name || "",
     transaction_type: transactionType, payment_method: transactionType === "tempo" ? "kredit" : "tunai", payment_channel: transactionType === "tempo" ? "tempo" : paymentChannel,
     account_id: transactionType === "cash" ? (account?.id || "") : "", account_name: transactionType === "cash" ? (account?.name || "") : "",
@@ -123,9 +131,10 @@ export default function SalesPOSNew() {
 
   const validate = () => {
     if (!branchId) throw new Error("Head Office harus memilih konteks satu cabang sebelum membuat transaksi.");
-    if (!warehouse) throw new Error("Cabang belum mempunyai gudang aktif.");
     if (!salespersonId) throw new Error("Pilih sales.");
     if (!items.length) throw new Error("Tambahkan minimal satu produk.");
+    const insufficient = items.find((item) => stockByProduct[item.product_id] != null && item.qty > stockByProduct[item.product_id]);
+    if (insufficient) throw new Error(`Stok cabang ${insufficient.product_name} tidak cukup (tersedia ${stockByProduct[insufficient.product_id]}).`);
     if (transactionType === "tempo") {
       if (!customer) throw new Error("Customer wajib dipilih untuk transaksi tempo.");
       if (customer.is_active === false) throw new Error("Customer tidak aktif.");
@@ -146,7 +155,7 @@ export default function SalesPOSNew() {
     catch (error) { toast({ title: "Posting gagal", description: error.message, variant: "destructive" }); } finally { setBusy(false); }
   };
 
-  const openDraft = (draft) => { setEditingDraftId(draft.id); setTransactionType(draft.transaction_type || (draft.payment_method === "kredit" ? "tempo" : "cash")); setPaymentChannel(draft.payment_channel || "cash"); setSalespersonId(draft.salesperson_id || ""); setCustomerId(draft.customer_id || ""); setAccountId(draft.account_id || ""); setNote(draft.note || ""); setPaid(draft.amount_paid || 0); setItems((draft.items || []).map((item) => ({ ...item, discount_percent: item.discount_percent || 0 }))); };
+  const openDraft = async (draft) => { setEditingDraftId(draft.id); setTransactionType(draft.transaction_type || (draft.payment_method === "kredit" ? "tempo" : "cash")); setPaymentChannel(draft.payment_channel || "cash"); setSalespersonId(draft.salesperson_id || ""); setCustomerId(draft.customer_id || ""); setAccountId(draft.account_id || ""); setNote(draft.note || ""); setPaid(draft.amount_paid || 0); const draftItems = (draft.items || []).map((item) => ({ ...item, discount_percent: item.discount_percent || 0 })); setItems(draftItems); try { const balances = await Promise.all(draftItems.map(async (item) => [item.product_id, (await getBranchProductBalance(branchId, item.product_id)).quantity])); setStockByProduct(Object.fromEntries(balances)); } catch (error) { toast({ title: "Draft dibuka, stok gagal dimuat", description: error.message, variant: "destructive" }); } };
   const deleteDraft = async (draft) => { await base44.entities.Sale.delete(draft.id); await loadDrafts(); toast({ title: `Draft ${draft.code} dihapus` }); };
 
   useEffect(() => {

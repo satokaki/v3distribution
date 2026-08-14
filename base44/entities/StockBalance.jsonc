@@ -18,6 +18,14 @@
       "type": "string",
       "title": "Cabang"
     },
+    "balance_scope": {
+      "type": "string",
+      "title": "Cakupan Saldo",
+      "enum": [
+        "branch",
+        "warehouse_legacy"
+      ]
+    },
     "branch_code": {
       "type": "string",
       "title": "Kode Cabang"
@@ -48,7 +56,7 @@
   },
   "required": [
     "product_id",
-    "warehouse_id",
+    "branch_id",
     "quantity"
   ],
   "rls": {
