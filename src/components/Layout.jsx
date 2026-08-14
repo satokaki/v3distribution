@@ -56,6 +56,7 @@ const menuGroups = [
     items: [
       { label: "Inventory", path: "/stok", icon: Boxes, permission: "inventory.view" },
       { label: "Kartu Stok", path: "/kartu-stok", icon: ClipboardList, permission: "inventory.view" },
+      { label: "Audit & Rekonsiliasi Stok", path: "/audit-stok", icon: Repeat2, permission: "inventory.view" },
       { label: "Hutang Supplier", path: "/hutang", icon: CreditCard, permission: "payable.view" },
       { label: "Piutang", path: "/piutang", icon: Wallet, permission: "receivable.view" },
       { label: "Kas", path: "/buku-kas", icon: Wallet, permission: "cash.view" },
