@@ -11,7 +11,7 @@ const inputCls = "w-full px-3 py-2 text-sm rounded-lg border border-input bg-bac
 
 export default function MutasiFormModal({ open, onClose, onSaved, existingCount }) {
   const { toast } = useToast();
-  const { accessibleBranches, isSuperAdmin } = useBranchContext();
+  const { activeBranchId, isSuperAdmin } = useBranchContext();
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [products, setProducts] = useState([]);
@@ -38,10 +38,8 @@ export default function MutasiFormModal({ open, onClose, onSaved, existingCount 
           base44.entities.Product.list(),
         ]);
         // Filter cabang sesuai akses
-        const allowed = isSuperAdmin
-          ? b
-          : b.filter((x) => accessibleBranches.some((ab) => ab.branch_id === x.id));
-        setBranches(allowed);
+        const allowed = isSuperAdmin ? b : b.filter((x) => x.id === activeBranchId);
+        setBranches(b);
         setWarehouses(w || []);
         setProducts((p || []).filter((x) => x.is_active !== false));
         // default from_branch = cabang aktif / pertama
@@ -170,7 +168,7 @@ export default function MutasiFormModal({ open, onClose, onSaved, existingCount 
               <div className="rounded-lg border border-border p-3">
                 <div className="text-xs font-semibold text-muted-foreground mb-2">ASAL</div>
                 <label className="block text-xs font-medium mb-1">Cabang Asal</label>
-                <select value={form.from_branch_id} onChange={(e) => setForm({ ...form, from_branch_id: e.target.value, from_warehouse_id: "" })} className={inputCls}>
+              <select value={form.from_branch_id} onChange={(e) => setForm({ ...form, from_branch_id: e.target.value, from_warehouse_id: "" })} disabled={!isSuperAdmin} className={inputCls}>
                   <option value="">— pilih —</option>
                   {branches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.name}</option>)}
                 </select>

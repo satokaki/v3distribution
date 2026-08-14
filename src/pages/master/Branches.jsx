@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useEntityList } from "@/lib/useEntityList";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";

@@ -12,6 +12,7 @@ import { postPurchase } from "@/lib/posting";
 import { writeAuditLog } from "@/lib/audit";
 import { generateDailyCode } from "@/lib/transactionCode";
 import { formatCurrency } from "@/lib/utils";
+import { useBranchContext } from "@/lib/BranchContext";
 
 function StatusBadge({ value }) {
   const map = {
@@ -22,6 +23,7 @@ function StatusBadge({ value }) {
 }
 
 export default function Pembelian() {
+  const { activeBranchId, isAllBranches } = useBranchContext();
   const { toast } = useToast();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ export default function Pembelian() {
     setLoading(true);
     try {
       const items = await base44.entities.Purchase.list("-created_date", 500);
-      setData(items || []);
+      setData(isAllBranches ? (items || []) : (items || []).filter((item) => item.branch_id === activeBranchId));
     } catch {
       toast({ title: "Gagal memuat data", variant: "destructive" });
     } finally {
@@ -47,7 +49,7 @@ export default function Pembelian() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [activeBranchId, isAllBranches]);
 
   const filtered = useMemo(() => {
     return data.filter((r) => {

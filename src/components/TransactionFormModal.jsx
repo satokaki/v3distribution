@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from "react";
 import { X, Plus, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { formatCurrency } from "@/lib/utils";
+import { useBranchContext } from "@/lib/BranchContext";
 
 const inputCls = "w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 
 export default function TransactionFormModal({ open, onClose, onSubmit, type, editing = null }) {
+  const { activeBranchId, isSuperAdmin } = useBranchContext();
   const isPurchase = type === "purchase";
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -31,14 +33,18 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type, ed
 
   useEffect(() => {
     if (!open) return;
-    base44.entities.Branch.list().then((r) => setBranches(r || []));
+    base44.entities.Branch.list().then((r) => {
+      const available = isSuperAdmin ? (r || []) : (r || []).filter((b) => b.id === activeBranchId);
+      setBranches(available);
+      if (!isSuperAdmin && !editing) setBranchId(activeBranchId);
+    });
     base44.entities.Product.list().then((r) => setProducts(r || []));
     if (isPurchase) {
       base44.entities.Supplier.list().then((r) => setSuppliers(r || []));
     } else {
       base44.entities.Customer.list().then((r) => setCustomers(r || []));
     }
-  }, [open, isPurchase]);
+  }, [open, isPurchase, activeBranchId, isSuperAdmin, editing]);
 
   useEffect(() => {
     if (!branchId) return;
@@ -167,7 +173,7 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type, ed
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5">Cabang <span className="text-destructive">*</span></label>
-              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={inputCls}>
+              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} disabled={!isSuperAdmin} className={inputCls}>
                 <option value="">— Pilih —</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>

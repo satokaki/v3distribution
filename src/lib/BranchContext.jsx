@@ -7,11 +7,13 @@ import {
   branchCan,
 } from "@/lib/authHelpers";
 import { writeAuditLog } from "@/lib/audit";
+import { useAuth } from "@/lib/AuthContext";
 
 const BranchContext = createContext(null);
-const LS_KEY = "vapecontrol.active_branch_id";
+const LS_KEY = "v3pos.head_office_branch_id";
 
 export function BranchProvider({ children }) {
+  const { user: authenticatedUser } = useAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [accessibleBranches, setAccessibleBranches] = useState([]);
@@ -22,7 +24,7 @@ export function BranchProvider({ children }) {
 
   useEffect(() => {
     (async () => {
-      const u = await getCurrentUser();
+      const u = authenticatedUser || await getCurrentUser();
       if (!u) {
         setLoading(false);
         return;
@@ -33,21 +35,23 @@ export function BranchProvider({ children }) {
       setAccessibleBranches(ab);
 
       // Tentukan cabang aktif awal
-      const stored = localStorage.getItem(LS_KEY);
       let chosen = "";
       if (sa) {
-        chosen = stored || "all";
+        const stored = localStorage.getItem(LS_KEY);
+        chosen = stored === "all" || ab.some((b) => b.branch_id === stored) ? stored : "all";
       } else {
-        const validStored = ab.find((b) => b.branch_id === stored);
         const def = ab.find((b) => b.is_default);
-        chosen = validStored ? stored : def ? def.branch_id : ab[0]?.branch_id || "";
+        // Operational users are always locked to their mapped default branch.
+        const mappedDefault = ab.find((b) => b.branch_id === u.default_branch_id);
+        chosen = mappedDefault?.branch_id || def?.branch_id || ab[0]?.branch_id || "";
       }
       setActiveBranchId(chosen);
       setLoading(false);
     })();
-  }, []);
+  }, [authenticatedUser]);
 
   const setActiveBranch = useCallback((id) => {
+    if (!isSuper) return;
     setActiveBranchId(id);
     localStorage.setItem(LS_KEY, id);
     writeAuditLog({
@@ -56,7 +60,7 @@ export function BranchProvider({ children }) {
       description: `Ganti cabang aktif ke ${id}`,
       branchId: id === "all" ? "" : id,
     });
-  }, []);
+  }, [isSuper]);
 
   const activeBranch = accessibleBranches.find((b) => b.branch_id === activeBranchId);
   const isAllBranches = isSuper && activeBranchId === "all";
@@ -70,6 +74,8 @@ export function BranchProvider({ children }) {
     activeBranchId,
     activeBranch,
     isAllBranches,
+    hasBranchAssignment: isSuper || !!activeBranchId,
+    canSwitchBranch: isSuper,
     setActiveBranch,
     hasPermission: (perm) => hasPermission(rolePermissions, perm),
     branchCan: (perm) => branchCan(activeBranch, perm),

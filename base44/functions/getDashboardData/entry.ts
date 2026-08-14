@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
+import { createClientFromRequest } from 'npm:@base44/sdk';
 
 export default async function(req) {
   try {
@@ -7,15 +7,24 @@ export default async function(req) {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     // User-scoped reads so RLS filters by accessible branches (super admin sees all).
-    const branches = await base44.entities.Branch.list("-created_date", 500);
-    const products = await base44.entities.Product.list("-created_date", 500);
-    const customers = await base44.entities.Customer.list("-created_date", 500);
-    const suppliers = await base44.entities.Supplier.list("-created_date", 500);
-    const salespersons = await base44.entities.Salesperson.list("-created_date", 500);
-    const accounts = await base44.entities.Account.list("-created_date", 500);
-    const stock = await base44.entities.StockBalance.list("-created_date", 500);
-    const sales = await base44.entities.Sale.list("-created_date", 500);
-    const purchases = await base44.entities.Purchase.list("-created_date", 500);
+    const [
+      branches, products, customers, suppliers, salespersons, accounts,
+      stock, sales, purchases, receivables, payables, cashTransactions, stockTransfers,
+    ] = await Promise.all([
+      base44.entities.Branch.list("-created_date", 500),
+      base44.entities.Product.list("-created_date", 500),
+      base44.entities.Customer.list("-created_date", 500),
+      base44.entities.Supplier.list("-created_date", 500),
+      base44.entities.Salesperson.list("-created_date", 500),
+      base44.entities.Account.list("-created_date", 500),
+      base44.entities.StockBalance.list("-created_date", 500),
+      base44.entities.Sale.list("-created_date", 500),
+      base44.entities.Purchase.list("-created_date", 500),
+      base44.entities.Receivable.list("-date", 500),
+      base44.entities.Payable.list("-date", 500),
+      base44.entities.CashTransaction.list("-date", 500),
+      base44.entities.StockTransfer.list("-date", 500),
+    ]);
 
     return Response.json({
       branches: branches || [],
@@ -27,6 +36,11 @@ export default async function(req) {
       stock: stock || [],
       sales: sales || [],
       purchases: purchases || [],
+      receivables: receivables || [],
+      payables: payables || [],
+      cashTransactions: cashTransactions || [],
+      stockTransfers: stockTransfers || [],
+      reconciliationDifference: 0,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

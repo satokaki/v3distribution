@@ -12,7 +12,7 @@ const CATEGORIES = ["Penjualan", "Pembelian", "Mutasi Antar Cabang", "Gaji & Upa
 
 export default function CashTransactionFormModal({ open, onClose, onSaved, existingCount }) {
   const { toast } = useToast();
-  const { accessibleBranches, isSuperAdmin } = useBranchContext();
+  const { activeBranchId, isSuperAdmin } = useBranchContext();
   const [accounts, setAccounts] = useState([]);
   const [branches, setBranches] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -36,7 +36,7 @@ export default function CashTransactionFormModal({ open, onClose, onSaved, exist
           base44.entities.Account.list(),
           base44.entities.Branch.list(),
         ]);
-        const allowed = isSuperAdmin ? b : b.filter((x) => accessibleBranches.some((ab) => ab.branch_id === x.id));
+        const allowed = isSuperAdmin ? b : b.filter((x) => x.id === activeBranchId);
         setAccounts((a || []).filter((x) => x.is_active !== false));
         setBranches(allowed);
         setForm((f) => ({ ...f, branch_id: f.branch_id || allowed[0]?.id || "" }));
@@ -121,7 +121,7 @@ export default function CashTransactionFormModal({ open, onClose, onSaved, exist
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5">Cabang</label>
-              <select value={form.branch_id} onChange={(e) => setForm({ ...form, branch_id: e.target.value, account_id: "" })} className={inputCls}>
+              <select value={form.branch_id} onChange={(e) => setForm({ ...form, branch_id: e.target.value, account_id: "" })} disabled={!isSuperAdmin} className={inputCls}>
                 <option value="">— pilih —</option>
                 {branches.map((b) => <option key={b.id} value={b.id}>{b.code} · {b.name}</option>)}
               </select>

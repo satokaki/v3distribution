@@ -26,16 +26,30 @@ const ROLE_TO_CODE = {
   finance: "FINANCE",
 };
 
+// Baseline access is kept in the app so a newly-created Role record cannot
+// accidentally expose every module. Permissions stored in Role may extend it.
+export const ROLE_BASE_PERMISSIONS = {
+  super_admin: ["*"],
+  kepala_cabang: ["dashboard.view", "sales.*", "pricing.view", "receivable.*", "purchase.*", "payable.*", "inventory.*", "transfer.*", "cash.*", "bank.view", "reconciliation.view", "customer.*", "product.view", "report.*"],
+  admin_cabang: ["dashboard.view", "sales.*", "pricing.view", "receivable.*", "purchase.*", "payable.*", "inventory.*", "transfer.*", "cash.*", "bank.view", "customer.*", "product.view", "report.view"],
+  kasir: ["dashboard.view", "sales.view", "sales.create", "pricing.view", "receivable.view", "receivable.create", "customer.view", "customer.create", "product.view", "inventory.view", "cash.view", "cash.create"],
+  gudang: ["dashboard.view", "inventory.*", "transfer.view", "transfer.create", "purchase.view", "product.view"],
+  finance: ["dashboard.view", "receivable.*", "payable.*", "cash.*", "bank.*", "reconciliation.*", "report.*"],
+};
+
 /** Muat permission role global + daftar cabang yang dapat diakses user. */
 export async function loadUserAccess(user) {
   if (!user) return { rolePermissions: [], accessibleBranches: [], isSuperAdmin: false };
   const superAdmin = isSuperAdmin(user);
 
-  let rolePermissions = [];
+  let rolePermissions = [...(ROLE_BASE_PERMISSIONS[user.app_role] || [])];
   try {
     const code = ROLE_TO_CODE[user.app_role] || user.app_role || user.role;
     const roles = await base44.entities.Role.filter({ code });
-    rolePermissions = roles[0]?.permissions || [];
+    rolePermissions = [
+      ...rolePermissions,
+      ...(roles[0]?.permissions || []),
+    ];
   } catch {
     /* ignore */
   }
@@ -55,7 +69,9 @@ export async function loadUserAccess(user) {
 export function hasPermission(perms, perm) {
   if (!perms || !perm) return false;
   if (perms.includes("*")) return true;
-  return perms.includes(perm);
+  if (perms.includes(perm)) return true;
+  const moduleName = perm.split(".")[0];
+  return perms.includes(`${moduleName}.*`);
 }
 
 const PERM_TO_FLAG = {

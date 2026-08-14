@@ -14,6 +14,7 @@ import { postSale } from "@/lib/posting";
 import { writeAuditLog } from "@/lib/audit";
 import { generateDailyCode } from "@/lib/transactionCode";
 import { formatCurrency } from "@/lib/utils";
+import { useBranchContext } from "@/lib/BranchContext";
 
 function StatusBadge({ value }) {
   const map = {
@@ -24,6 +25,7 @@ function StatusBadge({ value }) {
 }
 
 export default function Penjualan() {
+  const { activeBranchId, isAllBranches } = useBranchContext();
   const { toast } = useToast();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,7 +53,7 @@ export default function Penjualan() {
         base44.entities.ProductCategory.list("-created_date", 500),
         base44.entities.Receivable.filter({ source: "sale" }),
       ]);
-      setData(items || []);
+      setData(isAllBranches ? (items || []) : (items || []).filter((item) => item.branch_id === activeBranchId));
       setProductMap(Object.fromEntries((products || []).map((p) => [p.id, p])));
       setSalespersons(sps || []);
       setCategories(cats || []);
@@ -67,7 +69,7 @@ export default function Penjualan() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [activeBranchId, isAllBranches]);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedKeyword(keyword), 300);
