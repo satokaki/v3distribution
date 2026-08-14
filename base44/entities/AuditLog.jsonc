@@ -14,6 +14,18 @@
       "type": "string",
       "title": "Cabang"
     },
+    "entity": {
+      "type": "string",
+      "title": "Entity"
+    },
+    "entity_id": {
+      "type": "string",
+      "title": "Entity ID"
+    },
+    "request_id": {
+      "type": "string",
+      "title": "Request ID"
+    },
     "action": {
       "type": "string",
       "title": "Aksi"

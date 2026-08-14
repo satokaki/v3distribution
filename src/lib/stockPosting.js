@@ -1,7 +1,9 @@
 import { base44 } from "@/api/base44Client";
+import { BRANCH_SCOPE, ensureBranchProductBalance, withBranchStockLock } from "@/lib/branchStockBalance";
 
 /**
- * Apply a stock movement (in/out) for a product in a warehouse.
+ * Apply a stock movement (in/out) to a branch-level product balance.
+ * `warehouse` remains accepted only for backward-compatible callers.
  * Updates StockBalance and appends a StockLedger entry.
  * Throws if an "out" movement would drive the balance below zero.
  */
@@ -18,58 +20,37 @@ export async function applyStockMovement({
   note,
 }) {
   const productId = product.product_id || product.id;
-  const filters = { product_id: productId, warehouse_id: warehouse.id };
-  const existing = await base44.entities.StockBalance.filter(filters);
-  let balance = existing[0];
   const dir = direction || (type === "in" ? "in" : "out");
 
-  let newQty;
-  if (balance) {
-    newQty = dir === "in" ? balance.quantity + qty : balance.quantity - qty;
-  } else {
-    newQty = dir === "in" ? qty : -qty;
-  }
+  return withBranchStockLock(branch.id, productId, async () => {
+    const balance = await ensureBranchProductBalance({ branch, product });
+    const currentQty = Number(balance.quantity || 0);
+    const movementQty = Number(qty || 0);
+    const newQty = dir === "in" ? currentQty + movementQty : currentQty - movementQty;
 
-  // Guard: prevent negative stock on out movements
-  if (dir === "out" && newQty < 0) {
-    const avail = balance ? balance.quantity : 0;
-    throw new Error(`Stok tidak cukup untuk ${product.product_name || product.sku || productId} (tersedia ${avail}, butuh ${qty})`);
-  }
+    if (dir === "out" && newQty < 0) {
+      throw new Error(`Stok tidak cukup untuk ${product.product_name || product.sku || productId} (tersedia ${currentQty}, butuh ${movementQty})`);
+    }
 
-  if (balance) {
-    await base44.entities.StockBalance.update(balance.id, { quantity: newQty });
-  } else {
-    balance = await base44.entities.StockBalance.create({
+    await base44.entities.StockBalance.update(balance.id, { quantity: newQty, balance_scope: BRANCH_SCOPE, warehouse_id: null, warehouse_name: "" });
+    await base44.entities.StockLedger.create({
       product_id: productId,
       product_name: product.product_name || product.name,
       sku: product.sku,
       branch_id: branch.id,
       branch_code: branch.code,
-      warehouse_id: warehouse.id,
-      warehouse_name: warehouse.name,
-      quantity: newQty,
-      unit: product.unit || "pcs",
-      min_stock: product.min_stock || 0,
+      balance_scope: BRANCH_SCOPE,
+      warehouse_id: null,
+      warehouse_name: "",
+      movement_type: type,
+      ref_type: refType,
+      ref_id: refId,
+      ref_code: refCode,
+      quantity: movementQty,
+      balance_after: newQty,
+      note: note || "",
+      date: new Date().toISOString(),
     });
-  }
-
-  await base44.entities.StockLedger.create({
-    product_id: productId,
-    product_name: product.product_name || product.name,
-    sku: product.sku,
-    branch_id: branch.id,
-    branch_code: branch.code,
-    warehouse_id: warehouse.id,
-    warehouse_name: warehouse.name,
-    movement_type: type,
-    ref_type: refType,
-    ref_id: refId,
-    ref_code: refCode,
-    quantity: qty,
-    balance_after: newQty,
-    note: note || "",
-    date: new Date().toISOString(),
+    return newQty;
   });
-
-  return newQty;
 }
