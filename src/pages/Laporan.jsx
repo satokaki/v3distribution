@@ -26,11 +26,10 @@ function inRange(dateStr, from, to) {
 }
 
 export default function Laporan() {
-  const { accessibleBranches, isSuperAdmin, activeBranchId } = useBranchContext();
+  const { accessibleBranches, isSuperAdmin, readScopeBranchId, isAllBranches } = useBranchContext();
   const [tab, setTab] = useState("ringkasan");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [branchId, setBranchId] = useState("");
   const [stockType, setStockType] = useState("Semua");
   const [stockStatus, setStockStatus] = useState("Semua");
   const [stockSearch, setStockSearch] = useState("");
@@ -49,7 +48,7 @@ export default function Laporan() {
         base44.entities.Sale.list("-date", 500),
         base44.entities.Purchase.list("-date", 500),
         base44.entities.CashTransaction.list("-date", 500),
-        fetchInventoryReportData(isSuperAdmin ? "" : activeBranchId),
+        fetchInventoryReportData(isAllBranches ? "" : readScopeBranchId),
         base44.entities.Commission.list("-date", 500),
         base44.entities.Payable.list("-date", 500),
         base44.entities.Receivable.list("-date", 500),
@@ -61,19 +60,19 @@ export default function Laporan() {
     }
   };
 
-  useEffect(() => { if (isSuperAdmin || activeBranchId) loadAll(); }, [activeBranchId, isSuperAdmin]);
+  useEffect(() => { if (readScopeBranchId) loadAll(); }, [readScopeBranchId]);
 
   const scope = (arr, bidField = "branch_id") => {
     let r = arr || [];
     if (allowedBranchIds) r = r.filter((x) => allowedBranchIds.includes(x[bidField]));
-    if (branchId) r = r.filter((x) => x[bidField] === branchId);
+    if (!isAllBranches && readScopeBranchId) r = r.filter((x) => x[bidField] === readScopeBranchId);
     return r;
   };
 
-  const salesR = useMemo(() => scope(raw.sales).filter((s) => s.status === "posted" && inRange(s.date, from, to)), [raw.sales, allowedBranchIds, branchId, from, to]);
-  const purchasesR = useMemo(() => scope(raw.purchases).filter((s) => s.status === "posted" && inRange(s.date, from, to)), [raw.purchases, allowedBranchIds, branchId, from, to]);
-  const cashR = useMemo(() => scope(raw.cash).filter((s) => inRange(s.date, from, to)), [raw.cash, allowedBranchIds, branchId, from, to]);
-  const commissionsR = useMemo(() => scope(raw.commissions).filter((s) => inRange(s.date, from, to)), [raw.commissions, allowedBranchIds, branchId, from, to]);
+  const salesR = useMemo(() => scope(raw.sales).filter((s) => s.status === "posted" && inRange(s.date, from, to)), [raw.sales, allowedBranchIds, readScopeBranchId, isAllBranches, from, to]);
+  const purchasesR = useMemo(() => scope(raw.purchases).filter((s) => s.status === "posted" && inRange(s.date, from, to)), [raw.purchases, allowedBranchIds, readScopeBranchId, isAllBranches, from, to]);
+  const cashR = useMemo(() => scope(raw.cash).filter((s) => inRange(s.date, from, to)), [raw.cash, allowedBranchIds, readScopeBranchId, isAllBranches, from, to]);
+  const commissionsR = useMemo(() => scope(raw.commissions).filter((s) => inRange(s.date, from, to)), [raw.commissions, allowedBranchIds, readScopeBranchId, isAllBranches, from, to]);
 
   const totalPenjualan = salesR.reduce((s, x) => s + (x.total || 0), 0);
   const totalPembelian = purchasesR.reduce((s, x) => s + (x.total || 0), 0);
@@ -83,9 +82,9 @@ export default function Laporan() {
   const komisiPaid = commissionsR.filter((c) => c.status === "paid").reduce((s, x) => s + (x.amount || 0), 0);
 
   const reportBranchIds = useMemo(() => {
-    if (!isSuperAdmin) return activeBranchId ? [activeBranchId] : [];
-    return branchId ? [branchId] : null;
-  }, [activeBranchId, branchId, isSuperAdmin]);
+    if (isAllBranches) return null;
+    return readScopeBranchId ? [readScopeBranchId] : [];
+  }, [isAllBranches, readScopeBranchId]);
   const inventoryRows = useMemo(() => buildInventoryReport({ balances: raw.stock, products: raw.products, branchIds: reportBranchIds, branches: accessibleBranches }), [raw.stock, raw.products, reportBranchIds, accessibleBranches]);
   const stockR = useMemo(() => filterInventoryReport(inventoryRows, { type: stockType, status: stockStatus, search: stockSearch }), [inventoryRows, stockType, stockStatus, stockSearch]);
   const stockSummary = useMemo(() => summarizeInventoryReport(stockR), [stockR]);
@@ -95,7 +94,7 @@ export default function Laporan() {
   const piutangSisa = scope(raw.receivables).reduce((s, x) => s + ((x.amount || 0) - (x.paid_amount || 0)), 0);
 
   const exportInventoryCsv = () => {
-    const rows = inventoryReportExportRows(stockR, { includeBranch: isSuperAdmin });
+    const rows = inventoryReportExportRows(stockR, { includeBranch: isAllBranches });
     if (!rows.length) return;
     const headers = Object.keys(rows[0]);
     const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
@@ -103,7 +102,7 @@ export default function Laporan() {
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `laporan-inventory-${branchId || activeBranchId || "semua-cabang"}.csv`;
+    link.download = `laporan-inventory-${isAllBranches ? "semua-cabang" : readScopeBranchId}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -143,15 +142,6 @@ export default function Laporan() {
           <label className="block text-xs text-muted-foreground mb-1">Sampai</label>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className={inputCls} />
         </div>
-        {isSuperAdmin && (
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Cabang</label>
-            <select value={branchId} onChange={(e) => setBranchId(e.target.value)} className={inputCls}>
-              <option value="">Semua Cabang</option>
-              {accessibleBranches.map((b) => <option key={b.branch_id} value={b.branch_id}>{b.branch_code} · {b.branch_name}</option>)}
-            </select>
-          </div>
-        )}
       </div>
 
       <div className="flex flex-wrap gap-1 mb-5 border-b border-border">
@@ -244,12 +234,12 @@ export default function Laporan() {
                 <Card label="Stok Habis" value={stockSummary.out_of_stock} icon={TrendingDown} tone="text-rose-600" />
               </div>
               <TableWrap>
-                <thead><tr><Th>SKU</Th><Th>Produk</Th><Th>Brand</Th><Th>Kategori</Th>{isSuperAdmin && <Th>Cabang</Th>}<Th right>Qty</Th><Th right>Minimum</Th><Th>Status</Th><Th right>HPP / Unit</Th><Th right>Nilai Persediaan</Th></tr></thead>
+                <thead><tr><Th>SKU</Th><Th>Produk</Th><Th>Brand</Th><Th>Kategori</Th>{isAllBranches && <Th>Cabang</Th>}<Th right>Qty</Th><Th right>Minimum</Th><Th>Status</Th><Th right>HPP / Unit</Th><Th right>Nilai Persediaan</Th></tr></thead>
                 <tbody>
-                  {stockR.length === 0 ? <tr><td colSpan={isSuperAdmin ? 10 : 9} className="px-4 py-10 text-center text-muted-foreground">Tidak ada data</td></tr> :
+                  {stockR.length === 0 ? <tr><td colSpan={isAllBranches ? 10 : 9} className="px-4 py-10 text-center text-muted-foreground">Tidak ada data</td></tr> :
                     stockR.map((s) => (
                       <tr key={s.id} className="hover:bg-accent/30">
-                        <Td>{s.sku || "—"}</Td><Td>{s.product_name || "—"}</Td><Td>{s.brand || "—"}</Td><Td>{s.category_name || s.type_label}</Td>{isSuperAdmin && <Td>{s.branch_name}</Td>}
+                        <Td>{s.sku || "—"}</Td><Td>{s.product_name || "—"}</Td><Td>{s.brand || "—"}</Td><Td>{s.category_name || s.type_label}</Td>{isAllBranches && <Td>{s.branch_name}</Td>}
                         <Td right>{s.quantity || 0} {s.unit}</Td><Td right>{s.min_stock || 0}</Td><Td><span className={`rounded-full px-2 py-1 text-xs font-semibold ${s.status === "HABIS" ? "bg-red-100 text-red-700" : s.status === "MENIPIS" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{s.status}</span></Td><Td right>{formatCurrency(s.unit_cost || 0)}</Td><Td right>{formatCurrency(s.inventory_value || 0)}</Td>
                       </tr>
                     ))}
