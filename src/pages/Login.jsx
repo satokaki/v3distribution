@@ -66,7 +66,7 @@ export default function Login() {
   return (
     <AuthLayout
       icon={LogIn}
-      title="VapeDistro"
+      title="V3 Distribution"
       subtitle="Masuk ke akun Anda"
       footer={
         <>

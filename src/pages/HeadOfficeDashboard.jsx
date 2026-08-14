@@ -20,9 +20,9 @@ const SHORTCUTS = [
 
 function Section({ number, title, children, action = null }) {
   return (
-    <section className="rounded-2xl border border-border bg-card p-5">
+    <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3"><span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">{number}</span><h2 className="font-semibold">{title}</h2></div>
+        <div className="flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-xs font-bold text-white shadow-sm">{number}</span><h2 className="font-semibold text-emerald-950">{title}</h2></div>
         {action}
       </div>
       {children}
@@ -31,11 +31,18 @@ function Section({ number, title, children, action = null }) {
 }
 
 function Tile({ label, value, note = "", alert = false }) {
-  return <div className={`rounded-xl border p-3 ${alert ? "border-red-200 bg-red-50" : "border-border bg-background"}`}><div className="text-xs text-muted-foreground">{label}</div><div className={`mt-1 text-lg font-bold ${alert ? "text-red-700" : ""}`}>{value}</div>{note && <div className="mt-1 text-[11px] text-muted-foreground">{note}</div>}</div>;
+  const tone = /Piutang|Tempo|Hutang|Overdue|Jatuh Tempo/i.test(label)
+    ? "border-amber-200 bg-gradient-to-br from-amber-50 to-white"
+    : /Stok|Inventory|Persediaan|Produk/i.test(label)
+      ? "border-blue-200 bg-gradient-to-br from-blue-50 to-white"
+      : /Bank|Kas|Cash|Likuiditas|Penjualan/i.test(label)
+        ? "border-emerald-200 bg-gradient-to-br from-emerald-50 to-white"
+        : "border-violet-200 bg-gradient-to-br from-violet-50 to-white";
+  return <div className={`rounded-xl border p-3 transition-all hover:-translate-y-0.5 hover:shadow-sm ${alert ? "border-red-200 bg-gradient-to-br from-red-50 to-white" : tone}`}><div className="text-xs font-medium text-muted-foreground">{label}</div><div className={`mt-1 text-lg font-bold ${alert ? "text-red-700" : "text-slate-900"}`}>{value}</div>{note && <div className="mt-1 text-[11px] text-muted-foreground">{note}</div>}</div>;
 }
 
 function Pending({ label }) {
-  return <div className="flex items-center justify-between rounded-lg border border-dashed border-border p-3 text-sm"><span>{label}</span><span className="text-xs text-muted-foreground">Belum terhubung</span></div>;
+  return <div className="flex items-center justify-between rounded-lg border border-dashed border-emerald-200 bg-emerald-50/40 p-3 text-sm"><span>{label}</span><span className="text-xs text-emerald-700">Belum terhubung</span></div>;
 }
 
 export default function HeadOfficeDashboard({ data, loading, error }) {
@@ -105,8 +112,8 @@ export default function HeadOfficeDashboard({ data, loading, error }) {
   if (loading) return <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{Array.from({ length: 12 }).map((_, index) => <div key={index} className="h-28 animate-pulse rounded-xl bg-muted" />)}</div>;
 
   return (
-    <div className="space-y-6">
-      <div><h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Dashboard Pusat / Head Office</h1><p className="mt-1 text-sm text-muted-foreground">Konsolidasi seluruh cabang · {report.today}</p></div>
+    <div className="space-y-6 rounded-3xl bg-gradient-to-b from-emerald-50/70 via-white to-white p-1">
+      <div className="rounded-2xl bg-gradient-to-r from-emerald-700 to-green-500 px-6 py-5 text-white shadow-sm"><h1 className="text-2xl font-bold tracking-tight lg:text-3xl">Dashboard Pusat / Head Office</h1><p className="mt-1 text-sm text-emerald-50">Konsolidasi seluruh cabang · {report.today}</p></div>
       {error && <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
 
       <Section number="1" title="Ringkasan Bisnis"><div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Tile label="Penjualan Hari Ini" value={formatCurrency(report.salesToday)} /><Tile label="Penjualan Bulan Ini" value={formatCurrency(report.salesMonth)} /><Tile label="Total Cash" value={formatCurrency(report.cashSales)} /><Tile label="Total Tempo" value={formatCurrency(report.creditSales)} /><Tile label="Total Piutang" value={formatCurrency(report.receivable)} /><Tile label="Hutang Supplier" value={formatCurrency(report.payable)} /><Tile label="Nilai Persediaan" value={formatCurrency(report.inventory)} /><Tile label="Total Kas + Bank" value={formatCurrency(report.liquidity)} /></div></Section>

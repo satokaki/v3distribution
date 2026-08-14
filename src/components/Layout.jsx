@@ -185,8 +185,8 @@ export default function Layout() {
             <Store className="w-5 h-5 text-primary-foreground" />
           </div>
           <div className="leading-tight">
-            <div className="text-sm font-semibold text-sidebar-foreground">VapeDistro</div>
-            <div className="text-[11px] text-muted-foreground">Multi Cabang</div>
+            <div className="text-sm font-semibold text-sidebar-foreground">V3 Distribution</div>
+            <div className="text-[11px] text-emerald-700">Multi Cabang</div>
           </div>
         </div>
 
@@ -215,7 +215,7 @@ export default function Layout() {
 
       {/* Main */}
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 h-16 border-b border-border bg-background/80 backdrop-blur-md flex items-center justify-between px-4 lg:px-8">
+        <header className="sticky top-0 z-20 h-16 border-b border-emerald-100 bg-white/90 backdrop-blur-md flex items-center justify-between px-4 lg:px-8">
           <button
             className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-accent"
             onClick={() => setSidebarOpen(!sidebarOpen)}
