@@ -68,6 +68,18 @@
       ],
       "default": "tunai"
     },
+    "transaction_type": {
+      "type": "string",
+      "title": "Tipe Transaksi",
+      "enum": ["cash", "tempo"],
+      "default": "cash"
+    },
+    "payment_channel": {
+      "type": "string",
+      "title": "Kanal Pembayaran",
+      "enum": ["cash", "card", "qr", "edc", "transfer", "tempo"],
+      "default": "cash"
+    },
     "due_date": {
       "type": "string",
       "title": "Jatuh Tempo"
@@ -95,6 +107,17 @@
           },
           "subtotal": {
             "type": "number"
+          },
+          "discount_percent": {
+            "type": "number",
+            "default": 0
+          },
+          "discount_amount": {
+            "type": "number",
+            "default": 0
+          },
+          "price_source": {
+            "type": "string"
           }
         }
       },
@@ -105,12 +128,39 @@
       "title": "Total",
       "default": 0
     },
+    "subtotal": {
+      "type": "number",
+      "title": "Subtotal",
+      "default": 0
+    },
+    "discount_total": {
+      "type": "number",
+      "title": "Total Diskon",
+      "default": 0
+    },
+    "total_qty": {
+      "type": "number",
+      "title": "Total Qty",
+      "default": 0
+    },
+    "amount_paid": {
+      "type": "number",
+      "title": "Nominal Bayar",
+      "default": 0
+    },
+    "change_amount": {
+      "type": "number",
+      "title": "Kembalian",
+      "default": 0
+    },
     "status": {
       "type": "string",
       "title": "Status",
       "enum": [
         "draft",
-        "posted"
+        "posted",
+        "void",
+        "returned"
       ],
       "default": "draft"
     },

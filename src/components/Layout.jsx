@@ -38,7 +38,10 @@ const menuGroups = [
   {
     label: "Transaksi",
     items: [
-      { label: "Penjualan", path: "/penjualan", icon: ShoppingCart, permission: "sales.view" },
+      { label: "Penjualan", path: "/penjualan", icon: ShoppingCart, permission: "sales.view", children: [
+        { label: "Penjualan Baru", path: "/penjualan", permission: "sales.create" },
+        { label: "Laporan Penjualan", path: "/laporan/penjualan", permission: "sales.view" },
+      ] },
       { label: "Pricing Engine", path: "/pricing", icon: Percent, permission: "pricing.view" },
       { label: "Pembelian", path: "/pembelian", icon: PackagePlus, permission: "purchase.view" },
       { label: "Mutasi Antar Cabang", path: "/mutasi", icon: ArrowLeftRight, permission: "transfer.view" },

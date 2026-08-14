@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
@@ -24,7 +25,7 @@ function StatusBadge({ value }) {
   return <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[value] || "bg-muted text-muted-foreground"}`}>{value}</span>;
 }
 
-export default function Penjualan() {
+export default function Penjualan({ reportOnly = false }) {
   const { activeBranchId, isAllBranches } = useBranchContext();
   const { toast } = useToast();
   const [data, setData] = useState([]);
@@ -53,7 +54,8 @@ export default function Penjualan() {
         base44.entities.ProductCategory.list("-created_date", 500),
         base44.entities.Receivable.filter({ source: "sale" }),
       ]);
-      setData(isAllBranches ? (items || []) : (items || []).filter((item) => item.branch_id === activeBranchId));
+      const scoped = isAllBranches ? (items || []) : (items || []).filter((item) => item.branch_id === activeBranchId);
+      setData(reportOnly ? scoped.filter((item) => item.status !== "draft") : scoped);
       setProductMap(Object.fromEntries((products || []).map((p) => [p.id, p])));
       setSalespersons(sps || []);
       setCategories(cats || []);
@@ -209,20 +211,35 @@ export default function Penjualan() {
     { key: "status", label: "Status", render: (v) => <StatusBadge value={v} /> },
   ];
 
+  const reportKpi = useMemo(() => ({
+    total: filtered.reduce((sum, row) => sum + (row.total || 0), 0),
+    count: filtered.length,
+    cash: filtered.filter((row) => (row.transaction_type || (row.payment_method === "kredit" ? "tempo" : "cash")) === "cash").reduce((sum, row) => sum + (row.total || 0), 0),
+    tempo: filtered.filter((row) => (row.transaction_type || (row.payment_method === "kredit" ? "tempo" : "cash")) === "tempo").reduce((sum, row) => sum + (row.total || 0), 0),
+    returnTotal: filtered.filter((row) => row.status === "returned").reduce((sum, row) => sum + (row.total || 0), 0),
+  }), [filtered]);
+
+  const exportCsv = () => {
+    const headers = ["Tanggal", "No Nota", "Customer", "Sales", "Tipe", "Metode", "Qty", "Total", "Status"];
+    const rows = filtered.map((row) => [row.date, row.code, row.customer_name, row.salesperson_name, row.transaction_type || row.payment_method, row.payment_channel || row.payment_method, row.total_qty || (row.items || []).reduce((sum, item) => sum + (item.qty || 0), 0), row.total, row.status]);
+    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(",")).join("\r\n");
+    const url = URL.createObjectURL(new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = "laporan-penjualan.csv"; link.click(); URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <PageHeader
-        title="Penjualan"
-        subtitle="Transaksi penjualan retail & grosir"
+        title={reportOnly ? "Laporan Penjualan" : "Penjualan"}
+        subtitle={reportOnly ? "Pencarian, audit, monitoring, dan cetak ulang transaksi posted" : "Transaksi penjualan retail & grosir"}
         action={
-          <button
-            onClick={openNew}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            + Penjualan Baru
-          </button>
+          <div className="flex gap-2">
+            {reportOnly && <button onClick={exportCsv} className="rounded-lg border px-4 py-2 text-sm font-medium hover:bg-accent">Export CSV</button>}
+            {reportOnly ? <Link to="/penjualan" className="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">+ Penjualan Baru</Link> : <button onClick={openNew} className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">+ Penjualan Baru</button>}
+          </div>
         }
       />
+      {reportOnly && <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-5"><div className="rounded-xl border bg-card p-4"><div className="text-xs text-muted-foreground">Total Penjualan</div><strong className="mt-1 block text-lg">{formatCurrency(reportKpi.total)}</strong></div><div className="rounded-xl border bg-card p-4"><div className="text-xs text-muted-foreground">Total Transaksi</div><strong className="mt-1 block text-lg">{reportKpi.count}</strong></div><div className="rounded-xl border bg-card p-4"><div className="text-xs text-muted-foreground">Cash</div><strong className="mt-1 block text-lg text-emerald-600">{formatCurrency(reportKpi.cash)}</strong></div><div className="rounded-xl border bg-card p-4"><div className="text-xs text-muted-foreground">Tempo</div><strong className="mt-1 block text-lg text-amber-600">{formatCurrency(reportKpi.tempo)}</strong></div><div className="rounded-xl border bg-card p-4"><div className="text-xs text-muted-foreground">Retur</div><strong className="mt-1 block text-lg text-red-600">{formatCurrency(reportKpi.returnTotal)}</strong></div></div>}
       <div className="relative max-w-xl mb-3">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <input
@@ -243,7 +260,8 @@ export default function Penjualan() {
         data={filtered}
         loading={loading}
         searchKeys={[]}
-        rowActions={(row) => (
+        onRowClick={() => {}}
+        rowActions={(row) => reportOnly ? <div className="flex gap-2"><button onClick={() => setViewing(row)} className="rounded border px-2 py-1 text-xs">Lihat</button><button onClick={() => handlePreview(row)} className="rounded border px-2 py-1 text-xs">Cetak</button></div> : (
           <TransactionActionMenu
             row={row}
             onView={setViewing}
@@ -261,21 +279,21 @@ export default function Penjualan() {
         documentType="sale"
         isDraft={preview?.status === "draft"}
       />
-      <ConfirmDialog
+      {!reportOnly && <ConfirmDialog
         open={!!confirmTarget}
         title={confirmTarget ? `Hapus draft invoice ${confirmTarget.code}?` : ""}
         description="Data draft dan seluruh item di dalamnya akan dihapus. Tindakan ini tidak dapat dibatalkan."
         confirmLabel="Hapus"
         onConfirm={confirmDelete}
         onCancel={() => setConfirmTarget(null)}
-      />
-      <TransactionFormModal
+      />}
+      {!reportOnly && <TransactionFormModal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditing(null); }}
         onSubmit={handleSubmit}
         type="sale"
         editing={editing}
-      />
+      />}
       <TransactionDetailModal
         open={!!viewing}
         onClose={() => setViewing(null)}
