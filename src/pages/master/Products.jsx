@@ -63,7 +63,7 @@ export default function Products() {
   const handleSubmit = async (values) => {
     const cat = categories.find(c => c.id === values.category_id);
     const payload = { ...values, category_name: cat?.name || "" };
-    if (!editing) Object.assign(payload, nextProductIdentifiers(data));
+    if (!editing) Object.assign(payload, nextProductIdentifiers(data, cat));
     if (editing) await update(editing.id, payload);
     else await create(payload);
     setModalOpen(false);
