@@ -60,7 +60,11 @@ export function parseProductImportText(text) {
 
 export function parseProductImportMatrix(matrix) {
   const rows = Array.isArray(matrix) ? matrix : [];
-  const headerIndex = rows.findIndex((row) => row.some((cell) => canonicalHeader(cell) === "name"));
+  const headerCandidates = rows.map((row, index) => {
+    const canonical = row.map(canonicalHeader).filter(Boolean);
+    return { index, canonical, hasName: canonical.includes("name"), score: new Set(canonical).size };
+  }).filter((candidate) => candidate.hasName);
+  const headerIndex = headerCandidates.sort((a, b) => b.score - a.score || a.index - b.index)[0]?.index ?? -1;
   if (headerIndex < 0) {
     const result = [];
     result.importMeta = { headerRow: null, totalRows: 0 };

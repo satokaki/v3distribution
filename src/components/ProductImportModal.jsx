@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { CheckCircle2, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
+import { CheckCircle2, Download, FileSpreadsheet, Loader2, Upload, X } from "lucide-react";
 import * as XLSX from "xlsx";
 import { parseProductImportMatrix, parseProductImportText, prepareProductImport } from "@/lib/productImportCore";
 
@@ -9,6 +9,16 @@ export default function ProductImportModal({ open, onClose, products, categories
   const [importMeta, setImportMeta] = useState({ headerRow: null, totalRows: 0 });
   const [committing, setCommitting] = useState(false);
   if (!open) return null;
+
+  const downloadTemplate = () => {
+    const headers = ["Nama Barang", "Kategori", "Merk", "Barcode", "Harga Beli", "Harga Jual", "Satuan", "Subkategori", "Jenis Barang", "Isi per Karton", "Kadar Nikotin", "Volume", "Harga Grosir", "Harga Antar Cabang", "Minimum Stok"];
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    worksheet["!cols"] = headers.map((header) => ({ wch: Math.max(14, header.length + 2) }));
+    worksheet["!autofilter"] = { ref: `A1:${XLSX.utils.encode_col(headers.length - 1)}1` };
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Master Barang");
+    XLSX.writeFile(workbook, "Template-Import-Master-Barang-V3.xlsx");
+  };
 
   const handleFile = async (event) => {
     const file = event.target.files?.[0];
@@ -36,9 +46,9 @@ export default function ProductImportModal({ open, onClose, products, categories
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
     <div className="flex max-h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-xl">
-      <div className="flex items-center justify-between border-b px-6 py-4"><div><h2 className="text-lg font-semibold">Import Master Barang</h2><p className="text-sm text-muted-foreground">Nama Barang wajib. ID Barang, SKU, kategori, dan merk boleh kosong.</p></div><button onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
+      <div className="flex items-center justify-between border-b px-6 py-4"><div><h2 className="text-lg font-semibold">Import Master Barang</h2><p className="text-sm text-muted-foreground">Pilih file legacy atau gunakan template standar. Hanya Nama Barang yang wajib; SKU resmi dibuat otomatis oleh POS V3.</p></div><button onClick={onClose} className="rounded-lg p-2 hover:bg-slate-100"><X className="h-5 w-5" /></button></div>
       <div className="border-b bg-emerald-50/50 px-6 py-4">
-        <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"><Upload className="h-4 w-4" /> Pilih Excel / CSV / TSV<input type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" className="hidden" onChange={handleFile} /></label>
+        <div className="flex flex-wrap gap-2"><label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"><Upload className="h-4 w-4" /> Import File<input type="file" accept=".xlsx,.xls,.csv,.tsv,.txt" className="hidden" onChange={handleFile} /></label><button type="button" onClick={downloadTemplate} className="inline-flex items-center gap-2 rounded-xl border border-emerald-600 bg-white px-4 py-2.5 text-sm font-semibold text-emerald-700 hover:bg-emerald-50"><Download className="h-4 w-4" /> Download Template Excel</button></div>
         <span className="ml-3 text-sm text-slate-600">{fileName || "Header minimal: Nama Barang"}</span>
         {fileName && <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs text-slate-600"><span>Header ditemukan pada baris: {importMeta.headerRow ?? "—"}</span><span>Total row dibaca: {importMeta.totalRows}</span><span>READY: {ready.length}</span><span>DUPLICATE: {preview.filter((row) => row.status === "DUPLICATE").length}</span><span>INVALID: {preview.filter((row) => row.status === "INVALID").length}</span></div>}
       </div>

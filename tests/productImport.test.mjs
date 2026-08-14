@@ -143,3 +143,30 @@ test("CSV TSV dan TXT tetap mendeteksi header yang bukan baris pertama", () => {
     assert.equal(prepareProductImport(rows, [], [])[0].status, "READY");
   }
 });
+
+test("sel Item pada informasi laporan tidak mengalahkan header tabel lengkap", () => {
+  const rows = parseProductImportMatrix([
+    ["", "Laporan Daftar Item", "", "", "Item", "-"],
+    ["", "Octo Vape", "", "", "Jenis", "-"],
+    ["", "KH SHIDIQ 109 JEMBER", "", "", "Supel", ""],
+    ["", "IG: @octovaporbeast", "", "", "UserLogin", "JERRY"],
+    [], [],
+    ["No.", "Kode Item", "Barcode", "Nama Item", "Jenis", "Stok", "Sat.", "Komisi", "Harga Pokok", "Harga Jual"],
+    ["ACC", "", "", "", "", "", "", "", "", ""],
+    [1, "010004", "010004", "ACC. WRAP BATRAI 18650MAH", "ACC", 151, "PCS", 0, 0, 0],
+  ]);
+  const preview = prepareProductImport(rows, [], []);
+  assert.equal(rows.importMeta.headerRow, 7);
+  assert.equal(rows.importMeta.totalRows, 1);
+  assert.equal(preview.length, 1);
+  assert.equal(preview[0].name, "ACC. WRAP BATRAI 18650MAH");
+  assert.equal(preview[0].legacy_code, "010004");
+  assert.equal(preview[0].legacy_barcode, "010004");
+  assert.equal(preview[0].sku, "PST-ACC-000001");
+});
+
+test("template standar satu kolom Nama Barang tetap terdeteksi", () => {
+  const rows = parseProductImportMatrix([["Nama Barang"], ["Produk Template"]]);
+  assert.equal(rows.importMeta.headerRow, 1);
+  assert.equal(prepareProductImport(rows, [], [])[0].status, "READY");
+});
