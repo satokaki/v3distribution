@@ -115,7 +115,6 @@ function BarcodeVisual({ value, height = 32, width = 130 }) {
           />
         ))}
       </svg>
-      <div className="mt-0.5 max-w-[130px] truncate font-mono text-[9px]">{value}</div>
     </div>
   );
 }
@@ -170,9 +169,7 @@ function printBarcode(product) {
 <body>
   <div class="label">
     <svg viewBox="0 0 ${data.width} 58" preserveAspectRatio="none">${rects}</svg>
-    <div class="code">${safe(product.barcode)}</div>
-    <div class="name">${safe(product.name)}</div>
-    <div class="price">MSRP ${safe(formatCurrency(product.retail_price || 0))}</div>
+    <div class="nameprice">${safe(product.name)} · ${safe(formatCurrency(product.retail_price || 0))}</div>
   </div>
   <script>window.onload = () => window.print()</script>
 </body>
@@ -508,11 +505,8 @@ function ProductEditorModal({
               <div className="flex flex-wrap items-end gap-3">
                 <div className="rounded-lg border bg-white p-3">
                   <BarcodeVisual value={form.barcode} height={58} width={240} />
-                  <div className="mt-1 max-w-[260px] text-center text-[11px] font-semibold">
-                    {form.name || "Nama Barang"}
-                  </div>
-                  <div className="mt-1 text-center text-sm font-bold">
-                    MSRP {formatCurrency(form.retail_price || 0)}
+                  <div className="mt-1 max-w-[300px] text-center text-[11px] font-semibold">
+                    {form.name || "Nama Barang"} · {formatCurrency(form.retail_price || 0)}
                   </div>
                 </div>
 
