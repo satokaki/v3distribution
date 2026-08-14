@@ -43,7 +43,10 @@ const menuGroups = [
         { label: "Laporan Penjualan", path: "/laporan/penjualan", permission: "sales.view" },
       ] },
       { label: "Pricing Engine", path: "/pricing", icon: Percent, permission: "pricing.view" },
-      { label: "Pembelian", path: "/pembelian", icon: PackagePlus, permission: "purchase.view" },
+      { label: "Pembelian", path: "/pembelian", icon: PackagePlus, permission: "purchase.view", children: [
+        { label: "Pembelian Baru", path: "/pembelian", permission: "purchase.create" },
+        { label: "Laporan Pembelian", path: "/laporan/pembelian", permission: "purchase.view" },
+      ] },
       { label: "Mutasi Antar Cabang", path: "/mutasi", icon: ArrowLeftRight, permission: "transfer.view" },
       { label: "Jual Beli Cabang", path: "/jual-beli-cabang", icon: Repeat2, permission: "transfer.view" },
     ],

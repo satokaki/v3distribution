@@ -13,6 +13,7 @@ import { writeAuditLog } from "@/lib/audit";
 import { generateDailyCode } from "@/lib/transactionCode";
 import { formatCurrency } from "@/lib/utils";
 import { useBranchContext } from "@/lib/BranchContext";
+import { Link } from "react-router-dom";
 
 function StatusBadge({ value }) {
   const map = {
@@ -39,7 +40,8 @@ export default function Pembelian() {
     setLoading(true);
     try {
       const items = await base44.entities.Purchase.list("-created_date", 500);
-      setData(isAllBranches ? (items || []) : (items || []).filter((item) => item.branch_id === activeBranchId));
+      const scoped = isAllBranches ? (items || []) : (items || []).filter((item) => item.branch_id === activeBranchId);
+      setData(scoped.filter((item) => item.status !== "draft"));
     } catch {
       toast({ title: "Gagal memuat data", variant: "destructive" });
     } finally {
@@ -147,15 +149,15 @@ export default function Pembelian() {
   return (
     <div>
       <PageHeader
-        title="Pembelian"
-        subtitle="Transaksi pembelian barang dari supplier"
+        title="Laporan Pembelian"
+        subtitle="Pencarian, monitoring, dan audit transaksi pembelian"
         action={
-          <button
-            onClick={openNew}
+          <Link
+            to="/pembelian"
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"
           >
             + Pembelian Baru
-          </button>
+          </Link>
         }
       />
       <TransactionFilters

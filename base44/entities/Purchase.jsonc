@@ -51,6 +51,10 @@
       ],
       "default": "tunai"
     },
+    "payment_channel": {
+      "type": "string",
+      "title": "Kanal Pembayaran"
+    },
     "due_date": {
       "type": "string",
       "title": "Jatuh Tempo"
@@ -76,6 +80,17 @@
           "price": {
             "type": "number"
           },
+          "discount_percent": {
+            "type": "number",
+            "default": 0
+          },
+          "discount_amount": {
+            "type": "number",
+            "default": 0
+          },
+          "price_source": {
+            "type": "string"
+          },
           "subtotal": {
             "type": "number"
           }
@@ -88,12 +103,26 @@
       "title": "Total",
       "default": 0
     },
+    "subtotal": {
+      "type": "number",
+      "default": 0
+    },
+    "discount_total": {
+      "type": "number",
+      "default": 0
+    },
+    "total_qty": {
+      "type": "number",
+      "default": 0
+    },
     "status": {
       "type": "string",
       "title": "Status",
       "enum": [
         "draft",
-        "posted"
+        "posted",
+        "void",
+        "returned"
       ],
       "default": "draft"
     },

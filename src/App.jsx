@@ -25,6 +25,7 @@ import Accounts from '@/pages/master/Accounts';
 import Stock from '@/pages/Stock';
 import StockCard from '@/pages/StockCard';
 import Pembelian from '@/pages/Pembelian';
+import PurchasePOSNew from '@/pages/PurchasePOSNew';
 import Penjualan from '@/pages/Penjualan';
 import SalesPOSNew from '@/pages/SalesPOSNew';
 import Mutasi from '@/pages/Mutasi';
@@ -82,7 +83,8 @@ const AuthenticatedApp = () => {
           <Route path="/master/rekening" element={<PermissionGuard permission="bank.view"><Accounts /></PermissionGuard>} />
           <Route path="/stok" element={<PermissionGuard permission="inventory.view"><Stock /></PermissionGuard>} />
           <Route path="/kartu-stok" element={<PermissionGuard permission="inventory.view"><StockCard /></PermissionGuard>} />
-          <Route path="/pembelian" element={<PermissionGuard permission="purchase.view"><Pembelian /></PermissionGuard>} />
+          <Route path="/pembelian" element={<PermissionGuard permission="purchase.create"><PurchasePOSNew /></PermissionGuard>} />
+          <Route path="/laporan/pembelian" element={<PermissionGuard permission="purchase.view"><Pembelian /></PermissionGuard>} />
           <Route path="/penjualan" element={<PermissionGuard permission="sales.create"><SalesPOSNew /></PermissionGuard>} />
           <Route path="/laporan/penjualan" element={<PermissionGuard permission="sales.view"><Penjualan reportOnly /></PermissionGuard>} />
           <Route path="/mutasi" element={<PermissionGuard permission="transfer.view"><Mutasi /></PermissionGuard>} />
