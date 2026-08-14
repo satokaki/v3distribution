@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useEntityList } from "@/lib/useEntityList";
 import PageHeader from "@/components/PageHeader";
-import EntityFormModal from "@/components/EntityFormModal";
 import ProductImportModal from "@/components/ProductImportModal";
 import { formatCurrency } from "@/lib/utils";
 import { nextProductIdentifiers } from "@/lib/productImportCore";
@@ -16,17 +15,171 @@ import {
   ChevronLeft,
   ChevronRight,
   Printer,
+  X,
 } from "lucide-react";
 
 const PRODUCT_READ_BATCH = 500;
 const PRODUCT_READ_MAX = 100000;
 const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
-const normalize = (value) =>
-  String(value ?? "")
+const CODE128_PATTERNS = [
+  "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+  "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+  "221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+  "212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+  "231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+  "231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+  "314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+  "112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+  "111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+  "214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+  "114131","311141","411131","211412","211214","211232","2331112"
+];
+
+const START_B = 104;
+const STOP = 106;
+
+function normalize(value) {
+  return String(value ?? "")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
+}
+
+function buildCode128Bars(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return { bars: [], width: 1 };
+
+  const codes = [START_B];
+
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    if (code < 32 || code > 126) {
+      throw new Error(`Barcode mengandung karakter yang tidak didukung: ${ch}`);
+    }
+    codes.push(code - 32);
+  }
+
+  let checksum = START_B;
+  for (let i = 1; i < codes.length; i += 1) {
+    checksum += codes[i] * i;
+  }
+  checksum %= 103;
+
+  codes.push(checksum, STOP);
+
+  let x = 0;
+  const bars = [];
+
+  codes.forEach((code) => {
+    const pattern = CODE128_PATTERNS[code];
+    [...pattern].forEach((char, index) => {
+      const width = Number(char);
+      if (index % 2 === 0) bars.push({ x, width });
+      x += width;
+    });
+  });
+
+  return { bars, width: Math.max(x, 1) };
+}
+
+function BarcodeVisual({ value, height = 32, width = 130 }) {
+  const data = useMemo(() => {
+    try {
+      return { ...buildCode128Bars(value), error: "" };
+    } catch (error) {
+      return { bars: [], width: 1, error: error.message };
+    }
+  }, [value]);
+
+  if (!value) return <span className="text-muted-foreground">—</span>;
+  if (data.error) return <span className="text-xs text-destructive">Invalid</span>;
+
+  return (
+    <div>
+      <svg
+        viewBox={`0 0 ${data.width} ${height}`}
+        width={width}
+        height={height}
+        preserveAspectRatio="none"
+        className="text-black"
+      >
+        {data.bars.map((bar, index) => (
+          <rect
+            key={index}
+            x={bar.x}
+            y="0"
+            width={bar.width}
+            height={height}
+            fill="currentColor"
+          />
+        ))}
+      </svg>
+      <div className="mt-0.5 max-w-[130px] truncate font-mono text-[9px]">{value}</div>
+    </div>
+  );
+}
+
+function printBarcode(product) {
+  if (!product?.barcode) {
+    alert("Barcode barang belum diisi.");
+    return;
+  }
+
+  let data;
+  try {
+    data = buildCode128Bars(product.barcode);
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  const rects = data.bars
+    .map(
+      (bar) =>
+        `<rect x="${bar.x}" y="0" width="${bar.width}" height="58" fill="#000"/>`
+    )
+    .join("");
+
+  const safe = (value) =>
+    String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+
+  const win = window.open("", "_blank", "width=520,height=420");
+  if (!win) {
+    alert("Popup cetak diblokir browser.");
+    return;
+  }
+
+  win.document.write(`<!doctype html>
+<html>
+<head>
+  <title>Barcode ${safe(product.name)}</title>
+  <style>
+    @page { margin: 5mm; }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 10mm; }
+    .label { width: 65mm; margin: auto; text-align: center; }
+    svg { width: 58mm; height: 18mm; }
+    .code { font: 10px monospace; margin-top: 2mm; }
+    .name { font-size: 11px; font-weight: 700; line-height: 1.25; margin-top: 2mm; }\n    .price { font-size: 13px; font-weight: 800; margin-top: 1.5mm; }
+  </style>
+</head>
+<body>
+  <div class="label">
+    <svg viewBox="0 0 ${data.width} 58" preserveAspectRatio="none">${rects}</svg>
+    <div class="code">${safe(product.barcode)}</div>
+    <div class="name">${safe(product.name)}</div>
+    <div class="price">MSRP ${safe(formatCurrency(product.retail_price || 0))}</div>
+  </div>
+  <script>window.onload = () => window.print()</script>
+</body>
+</html>`);
+
+  win.document.close();
+}
 
 async function listAllProducts() {
   const rows = [];
@@ -55,315 +208,377 @@ async function listAllProducts() {
   return rows;
 }
 
-const makeFields = (categories, unitValue = "pcs") => {
-  const fields = [
-    {
-      name: "product_code",
-      label: "ID Barang",
-      type: "text",
-      disabled: true,
-      placeholder: "Otomatis",
-    },
-    {
-      name: "sku",
-      label: "SKU",
-      type: "text",
-      required: true,
-      disabled: true,
-      placeholder: "Otomatis",
-    },
-    {
-      name: "barcode",
-      label: "Barcode",
-      type: "text",
-    },
-    {
-      name: "name",
-      label: "Nama Barang",
-      type: "text",
-      required: true,
-      full: true,
-    },
-    {
-      name: "brand",
-      label: "Merek",
-      type: "text",
-    },
-    {
-      name: "category_id",
-      label: "Kategori",
-      type: "select",
-      options: categories.map((c) => ({
-        value: c.id,
-        label: c.name,
-      })),
-    },
-    {
-      name: "subcategory",
-      label: "Subkategori",
-      type: "text",
-    },
-    {
-      name: "unit",
-      label: "Satuan",
-      type: "select",
-      options: [
-        { value: "pcs", label: "PCS" },
-        { value: "pack", label: "PACK" },
-      ],
-      default: "pcs",
-    },
-  ];
-
-  if (unitValue === "pack") {
-    fields.push({
-      name: "pack_size",
-      label: "1 Pack Isi Berapa PCS",
-      type: "number",
-      required: true,
-      placeholder: "Contoh: 10",
-    });
-  }
-
-  fields.push(
-    {
-      name: "purchase_price",
-      label: "HBT",
-      type: "number",
-      disabled: true,
-      placeholder: "Dihitung otomatis dari pembelian rata-rata",
-    },
-    {
-      name: "retail_price",
-      label: "MSRP",
-      type: "number",
-    },
-    {
-      name: "grosir_price",
-      label: "WHOLESALE",
-      type: "number",
-    },
-    {
-      name: "interbranch_price",
-      label: "VIP",
-      type: "number",
-    },
-    {
-      name: "vvip_price",
-      label: "VVIP",
-      type: "number",
-    },
-    {
-      name: "min_stock",
-      label: "Minimum Stok",
-      type: "number",
-    },
-    {
-      name: "sync_enabled",
-      label: "Sinkron Antar Cabang",
-      type: "boolean",
-    },
-    {
-      name: "is_active",
-      label: "Status Aktif",
-      type: "boolean",
-    }
-  );
-
-  return fields;
+const DEFAULT_FORM = {
+  product_code: "",
+  sku: "",
+  barcode: "",
+  name: "",
+  brand: "",
+  category_id: "",
+  subcategory: "",
+  unit: "pcs",
+  pack_size: 1,
+  purchase_price: 0,
+  retail_price: 0,
+  grosir_price: 0,
+  interbranch_price: 0,
+  vvip_price: 0,
+  min_stock: 0,
+  sync_enabled: true,
+  is_active: true,
 };
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function barcodePattern(value) {
-  const chars = String(value || "")
-    .trim()
-    .split("");
-
-  if (!chars.length) return [];
-
-  // Visual barcode deterministic tanpa dependency library tambahan.
-  // Untuk scanner-grade barcode sebaiknya diganti dengan JsBarcode/Code128 helper existing.
-  const pattern = [2, 1, 2, 1];
-
-  chars.forEach((char, index) => {
-    const code = char.charCodeAt(0);
-    pattern.push(
-      1 + ((code + index) % 3),
-      1 + ((code >> 1) % 2),
-      1 + ((code >> 2) % 3),
-      1 + ((code >> 3) % 2)
-    );
-  });
-
-  pattern.push(2, 1, 2, 1);
-  return pattern;
-}
-
-function BarcodeVisual({ value, name, compact = false }) {
-  if (!value) return <span className="text-muted-foreground">—</span>;
-
-  const pattern = barcodePattern(value);
-  let x = 0;
-  const bars = [];
-
-  pattern.forEach((width, index) => {
-    if (index % 2 === 0) {
-      bars.push(
-        <rect
-          key={index}
-          x={x}
-          y="0"
-          width={width}
-          height={compact ? 30 : 42}
-          fill="currentColor"
-        />
-      );
-    }
-    x += width;
-  });
-
+function Field({ label, children, full = false }) {
   return (
-    <div className="inline-flex flex-col items-start gap-1">
-      <svg
-        viewBox={`0 0 ${Math.max(x, 1)} ${compact ? 30 : 42}`}
-        width={compact ? 120 : 170}
-        height={compact ? 30 : 42}
-        preserveAspectRatio="none"
-        aria-label={`Barcode ${value}`}
-        className="text-black"
-      >
-        {bars}
-      </svg>
-      <span className="font-mono text-[10px]">{value}</span>
-      {!compact && name ? (
-        <span className="max-w-[180px] text-[10px] font-semibold leading-tight">
-          {name}
-        </span>
-      ) : null}
+    <div className={full ? "md:col-span-2" : ""}>
+      <div className="mb-1.5 text-sm font-medium">{label}</div>
+      {children}
     </div>
   );
 }
 
-function printBarcode(product) {
-  const value = String(product?.barcode || "").trim();
+const inputClass =
+  "h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 disabled:bg-muted disabled:text-muted-foreground";
 
-  if (!value) {
-    alert("Barcode barang belum diisi.");
-    return;
-  }
+function ProductEditorModal({
+  open,
+  onClose,
+  onSubmit,
+  product,
+  categories,
+}) {
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [saving, setSaving] = useState(false);
 
-  const pattern = barcodePattern(value);
-  let x = 0;
-  const bars = pattern
-    .map((width, index) => {
-      const currentX = x;
-      x += width;
-      return index % 2 === 0
-        ? `<rect x="${currentX}" y="0" width="${width}" height="55" fill="#000"/>`
-        : "";
-    })
-    .join("");
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      ...DEFAULT_FORM,
+      ...(product || {}),
+      unit: product?.unit === "pack" ? "pack" : "pcs",
+      pack_size: product?.unit === "pack" ? Number(product?.pack_size || 1) : 1,
+    });
+  }, [open, product]);
 
-  const win = window.open("", "_blank", "width=520,height=420");
+  if (!open) return null;
 
-  if (!win) {
-    alert("Popup cetak diblokir browser.");
-    return;
-  }
+  const set = (name, value) => {
+    setForm((current) => ({
+      ...current,
+      [name]: value,
+      ...(name === "unit" && value === "pcs" ? { pack_size: 1 } : {}),
+    }));
+  };
 
-  win.document.write(`
-    <!doctype html>
-    <html>
-      <head>
-        <title>Barcode ${escapeHtml(product.name)}</title>
-        <style>
-          @page { margin: 8mm; }
-          body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 16px;
-          }
-          .label {
-            width: 70mm;
-            text-align: center;
-            border: 1px dashed #bbb;
-            padding: 8mm 5mm;
-            margin: 0 auto;
-          }
-          svg { width: 58mm; height: 18mm; }
-          .code {
-            font-family: monospace;
-            font-size: 11px;
-            margin-top: 4px;
-          }
-          .name {
-            margin-top: 6px;
-            font-size: 12px;
-            line-height: 1.25;
-            font-weight: 700;
-          }
-        </style>
-      </head>
-      <body>
-        <div class="label">
-          <svg viewBox="0 0 ${Math.max(x, 1)} 55" preserveAspectRatio="none">
-            ${bars}
-          </svg>
-          <div class="code">${escapeHtml(value)}</div>
-          <div class="name">${escapeHtml(product.name)}</div>
+  const submit = async (event) => {
+    event.preventDefault();
+
+    if (!String(form.name || "").trim()) {
+      alert("Nama Barang wajib diisi.");
+      return;
+    }
+
+    if (form.unit === "pack" && Number(form.pack_size || 0) <= 0) {
+      alert("Isi per Pack wajib lebih dari 0 PCS.");
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      await onSubmit({
+        ...form,
+        name: String(form.name).trim(),
+        brand: String(form.brand || "").trim(),
+        barcode: String(form.barcode || "").trim(),
+        pack_size: form.unit === "pack" ? Number(form.pack_size) : 1,
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <form
+        onSubmit={submit}
+        className="max-h-[92vh] w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-xl"
+      >
+        <div className="flex items-center justify-between border-b px-6 py-4">
+          <div>
+            <h2 className="text-xl font-bold">
+              {product ? "Edit Barang" : "Tambah Barang"}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Master barang terpusat V3 Distribution.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-2 hover:bg-accent"
+          >
+            <X className="h-5 w-5" />
+          </button>
         </div>
-        <script>
-          window.onload = () => {
-            window.print();
-          };
-        </script>
-      </body>
-    </html>
-  `);
 
-  win.document.close();
+        <div className="max-h-[calc(92vh-150px)] overflow-y-auto p-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <Field label="ID Barang">
+              <input
+                className={inputClass}
+                value={form.product_code || ""}
+                disabled
+                placeholder="Otomatis"
+              />
+            </Field>
+
+            <Field label="SKU">
+              <input
+                className={inputClass}
+                value={form.sku || ""}
+                disabled
+                placeholder="Otomatis"
+              />
+            </Field>
+
+            <Field label="Barcode">
+              <input
+                className={inputClass}
+                value={form.barcode || ""}
+                onChange={(e) => set("barcode", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Nama Barang">
+              <input
+                className={inputClass}
+                value={form.name || ""}
+                onChange={(e) => set("name", e.target.value)}
+                required
+              />
+            </Field>
+
+            <Field label="Merek">
+              <input
+                className={inputClass}
+                value={form.brand || ""}
+                onChange={(e) => set("brand", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Kategori">
+              <select
+                className={inputClass}
+                value={form.category_id || ""}
+                onChange={(e) => set("category_id", e.target.value)}
+              >
+                <option value="">Pilih kategori</option>
+                {categories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Subkategori">
+              <input
+                className={inputClass}
+                value={form.subcategory || ""}
+                onChange={(e) => set("subcategory", e.target.value)}
+              />
+            </Field>
+
+            <Field label="Satuan">
+              <select
+                className={inputClass}
+                value={form.unit}
+                onChange={(e) => set("unit", e.target.value)}
+              >
+                <option value="pcs">PCS</option>
+                <option value="pack">PACK</option>
+              </select>
+            </Field>
+
+            {form.unit === "pack" ? (
+              <Field label="1 PACK Isi Berapa PCS">
+                <div className="flex items-center gap-2">
+                  <input
+                    className={inputClass}
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.pack_size}
+                    onChange={(e) => set("pack_size", e.target.value)}
+                    required
+                  />
+                  <span className="whitespace-nowrap text-sm font-medium">PCS</span>
+                </div>
+              </Field>
+            ) : null}
+
+            <Field label="HBT">
+              <input
+                className={inputClass}
+                type="number"
+                value={form.purchase_price ?? 0}
+                disabled
+              />
+            </Field>
+
+            <Field label="MSRP">
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                value={form.retail_price ?? 0}
+                onChange={(e) => set("retail_price", Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="WHOLESALE">
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                value={form.grosir_price ?? 0}
+                onChange={(e) => set("grosir_price", Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="VIP">
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                value={form.interbranch_price ?? 0}
+                onChange={(e) => set("interbranch_price", Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="VVIP">
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                value={form.vvip_price ?? 0}
+                onChange={(e) => set("vvip_price", Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Minimum Stok">
+              <input
+                className={inputClass}
+                type="number"
+                min="0"
+                value={form.min_stock ?? 0}
+                onChange={(e) => set("min_stock", Number(e.target.value))}
+              />
+            </Field>
+
+            <Field label="Sinkron Antar Cabang">
+              <label className="flex h-10 items-center gap-2 rounded-lg border px-3">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.sync_enabled)}
+                  onChange={(e) => set("sync_enabled", e.target.checked)}
+                />
+                <span className="text-sm">
+                  {form.sync_enabled ? "Aktif" : "Nonaktif"}
+                </span>
+              </label>
+            </Field>
+
+            <Field label="Status Aktif">
+              <label className="flex h-10 items-center gap-2 rounded-lg border px-3">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.is_active)}
+                  onChange={(e) => set("is_active", e.target.checked)}
+                />
+                <span className="text-sm">
+                  {form.is_active ? "Aktif" : "Nonaktif"}
+                </span>
+              </label>
+            </Field>
+
+            <Field label="Preview Barcode" full>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="rounded-lg border bg-white p-3">
+                  <BarcodeVisual value={form.barcode} height={58} width={240} />
+                  <div className="mt-1 max-w-[260px] text-center text-[11px] font-semibold">
+                    {form.name || "Nama Barang"}
+                  </div>
+                  <div className="mt-1 text-center text-sm font-bold">
+                    MSRP {formatCurrency(form.retail_price || 0)}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => printBarcode(form)}
+                  className="inline-flex h-10 items-center gap-2 rounded-lg border px-4 text-sm font-medium hover:bg-accent"
+                >
+                  <Printer className="h-4 w-4" />
+                  Cetak Barcode
+                </button>
+              </div>
+            </Field>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 border-t bg-muted/20 px-6 py-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border px-4 py-2 text-sm font-medium"
+          >
+            Batal
+          </button>
+
+          <button
+            disabled={saving}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+          >
+            {saving ? "Menyimpan..." : product ? "Simpan Perubahan" : "Tambah Barang"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 export default function Products() {
   const { create, update, remove } = useEntityList("Product");
 
   const [allProducts, setAllProducts] = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [productsError, setProductsError] = useState("");
-
+  const [loading, setLoading] = useState(true);
+  const [errorText, setErrorText] = useState("");
   const [categories, setCategories] = useState([]);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [formUnit, setFormUnit] = useState("pcs");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("all");
   const [selectedCategory, setSelectedCategory] = useState("all");
-
   const [pageSize, setPageSize] = useState(10);
   const [page, setPage] = useState(1);
 
   const reloadProducts = useCallback(async () => {
-    setProductsLoading(true);
-    setProductsError("");
+    setLoading(true);
+    setErrorText("");
 
     try {
       setAllProducts(await listAllProducts());
     } catch (error) {
-      console.error("Gagal memuat seluruh Product:", error);
-      setProductsError(error?.message || "Gagal memuat master barang.");
+      console.error(error);
+      setErrorText(error?.message || "Gagal memuat Master Barang.");
     } finally {
-      setProductsLoading(false);
+      setLoading(false);
     }
   }, []);
 
@@ -371,7 +586,8 @@ export default function Products() {
     reloadProducts();
     base44.entities.ProductCategory
       .list("-created_date", 5000, 0)
-      .then(setCategories);
+      .then(setCategories)
+      .catch(console.error);
   }, [reloadProducts]);
 
   const brands = useMemo(
@@ -386,7 +602,7 @@ export default function Products() {
 
   const filteredProducts = useMemo(() => {
     const search = normalize(searchTerm);
-    const selectedCategoryName = normalize(
+    const categoryName = normalize(
       categories.find((category) => category.id === selectedCategory)?.name
     );
 
@@ -409,10 +625,7 @@ export default function Products() {
       const matchesCategory =
         selectedCategory === "all" ||
         product.category_id === selectedCategory ||
-        (
-          selectedCategoryName &&
-          normalize(product.category_name) === selectedCategoryName
-        );
+        (categoryName && normalize(product.category_name) === categoryName);
 
       return matchesSearch && matchesBrand && matchesCategory;
     });
@@ -424,7 +637,10 @@ export default function Products() {
     categories,
   ]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredProducts.length / pageSize)
+  );
 
   useEffect(() => {
     setPage(1);
@@ -447,54 +663,43 @@ export default function Products() {
     setSearchTerm("");
     setSelectedBrand("all");
     setSelectedCategory("all");
-    setPage(1);
-  };
-
-  const openCreate = () => {
-    setEditing(null);
-    setFormUnit("pcs");
-    setModalOpen(true);
-  };
-
-  const openEdit = (row) => {
-    setEditing(row);
-    setFormUnit(row.unit === "pack" ? "pack" : "pcs");
-    setModalOpen(true);
   };
 
   const handleSubmit = async (values) => {
-    const cat = categories.find((c) => c.id === values.category_id);
+    const category = categories.find(
+      (category) => category.id === values.category_id
+    );
 
     const payload = {
-      ...values,
+      product_code: values.product_code,
+      sku: values.sku,
+      barcode: values.barcode,
+      name: values.name,
+      brand: values.brand,
+      category_id: values.category_id || "",
+      category_name: category?.name || "",
+      subcategory: values.subcategory || "",
       unit: values.unit === "pack" ? "pack" : "pcs",
-      category_name: cat?.name || "",
-      // Master centralized: owner_branch_id tidak lagi ditulis.
-      owner_branch_id: undefined,
-      // Field lama tidak lagi dipakai oleh UI master baru.
-      product_type: undefined,
-      content_per_carton: undefined,
-      nicotine_level: undefined,
-      volume: undefined,
+      pack_size: values.unit === "pack" ? Number(values.pack_size || 1) : 1,
+      purchase_price: Number(values.purchase_price || 0),
+      retail_price: Number(values.retail_price || 0),
+      grosir_price: Number(values.grosir_price || 0),
+      interbranch_price: Number(values.interbranch_price || 0),
+      vvip_price: Number(values.vvip_price || 0),
+      min_stock: Number(values.min_stock || 0),
+      sync_enabled: Boolean(values.sync_enabled),
+      is_active: Boolean(values.is_active),
     };
 
-    if (payload.unit !== "pack") {
-      payload.pack_size = 1;
-    } else {
-      const packSize = Number(payload.pack_size || 0);
-      if (!Number.isFinite(packSize) || packSize <= 0) {
-        alert("Isi per Pack wajib lebih dari 0 PCS.");
-        return;
-      }
-      payload.pack_size = packSize;
-    }
-
     if (!editing) {
-      Object.assign(payload, nextProductIdentifiers(allProducts, cat));
+      Object.assign(
+        payload,
+        nextProductIdentifiers(allProducts, category)
+      );
       await create(payload);
     } else {
-      // HBT tidak diedit manual dari master.
-      payload.purchase_price = editing.purchase_price ?? 0;
+      // HBT read-only pada UI, pertahankan nilai existing.
+      payload.purchase_price = Number(editing.purchase_price || 0);
       await update(editing.id, payload);
     }
 
@@ -525,7 +730,10 @@ export default function Products() {
             </button>
 
             <button
-              onClick={openCreate}
+              onClick={() => {
+                setEditing(null);
+                setModalOpen(true);
+              }}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
               <Plus className="h-4 w-4" />
@@ -541,7 +749,7 @@ export default function Products() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Cari ID barang / nama / SKU / barcode..."
               className="h-10 w-full rounded-lg border bg-background pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/20"
             />
@@ -549,7 +757,7 @@ export default function Products() {
 
           <select
             value={selectedBrand}
-            onChange={(event) => setSelectedBrand(event.target.value)}
+            onChange={(e) => setSelectedBrand(e.target.value)}
             className="h-10 rounded-lg border bg-background px-3 text-sm"
           >
             <option value="all">Semua Merk</option>
@@ -562,7 +770,7 @@ export default function Products() {
 
           <select
             value={selectedCategory}
-            onChange={(event) => setSelectedCategory(event.target.value)}
+            onChange={(e) => setSelectedCategory(e.target.value)}
             className="h-10 rounded-lg border bg-background px-3 text-sm"
           >
             <option value="all">Semua Kategori</option>
@@ -604,7 +812,7 @@ export default function Products() {
             <span>Tampilkan</span>
             <select
               value={pageSize}
-              onChange={(event) => setPageSize(Number(event.target.value))}
+              onChange={(e) => setPageSize(Number(e.target.value))}
               className="h-8 rounded-md border bg-white px-2 text-xs text-foreground"
             >
               {PAGE_SIZE_OPTIONS.map((size) => (
@@ -618,62 +826,75 @@ export default function Products() {
         </div>
       </div>
 
-      {productsError ? (
+      {errorText ? (
         <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {productsError}
+          {errorText}
         </div>
       ) : null}
 
       <div className="overflow-hidden rounded-xl border bg-white">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1180px] text-sm">
+          <table className="w-full min-w-[1260px] text-sm">
             <thead className="border-b bg-muted/30 text-left">
               <tr>
-                <th className="px-4 py-4 font-semibold">ID Barang</th>
-                <th className="px-4 py-4 font-semibold">SKU</th>
-                <th className="px-4 py-4 font-semibold">Nama Barang</th>
-                <th className="px-4 py-4 font-semibold">Merek</th>
-                <th className="px-4 py-4 font-semibold">Kategori</th>
-                <th className="px-4 py-4 font-semibold">Satuan</th>
-                <th className="px-4 py-4 font-semibold">HBT</th>
-                <th className="px-4 py-4 font-semibold">MSRP</th>
-                <th className="px-4 py-4 font-semibold">WHOLESALE</th>
-                <th className="px-4 py-4 font-semibold">VIP</th>
-                <th className="px-4 py-4 font-semibold">VVIP</th>
-                <th className="px-4 py-4 font-semibold">Barcode</th>
-                <th className="px-4 py-4 font-semibold">Status</th>
+                <th className="px-4 py-4">ID Barang</th>
+                <th className="px-4 py-4">SKU</th>
+                <th className="px-4 py-4">Nama Barang</th>
+                <th className="px-4 py-4">Merek</th>
+                <th className="px-4 py-4">Kategori</th>
+                <th className="px-4 py-4">Satuan</th>
+                <th className="px-4 py-4">HBT</th>
+                <th className="px-4 py-4">MSRP</th>
+                <th className="px-4 py-4">WHOLESALE</th>
+                <th className="px-4 py-4">VIP</th>
+                <th className="px-4 py-4">VVIP</th>
+                <th className="px-4 py-4">Barcode</th>
+                <th className="px-4 py-4">Status</th>
                 <th className="w-[130px] px-4 py-4"></th>
               </tr>
             </thead>
 
             <tbody>
-              {productsLoading ? (
+              {loading ? (
                 <tr>
-                  <td colSpan={14} className="px-5 py-14 text-center text-muted-foreground">
+                  <td
+                    colSpan={14}
+                    className="px-5 py-14 text-center text-muted-foreground"
+                  >
                     Memuat seluruh master barang...
                   </td>
                 </tr>
               ) : pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="px-5 py-14 text-center text-muted-foreground">
+                  <td
+                    colSpan={14}
+                    className="px-5 py-14 text-center text-muted-foreground"
+                  >
                     Tidak ada barang yang sesuai filter.
                   </td>
                 </tr>
               ) : (
                 pageRows.map((row) => (
-                  <tr key={row.id} className="border-b align-top last:border-b-0 hover:bg-muted/20">
-                    <td className="px-4 py-4">
-                      <span className="font-mono text-xs">{row.product_code || "—"}</span>
+                  <tr
+                    key={row.id}
+                    className="border-b align-top last:border-b-0 hover:bg-muted/20"
+                  >
+                    <td className="px-4 py-4 font-mono text-xs">
+                      {row.product_code || "—"}
                     </td>
-                    <td className="px-4 py-4">
-                      <span className="font-mono text-xs font-semibold">{row.sku || "—"}</span>
+                    <td className="px-4 py-4 font-mono text-xs font-semibold">
+                      {row.sku || "—"}
                     </td>
-                    <td className="px-4 py-4 min-w-[220px]">{row.name || "—"}</td>
+                    <td className="min-w-[220px] px-4 py-4">
+                      {row.name || "—"}
+                    </td>
                     <td className="px-4 py-4">{row.brand || "—"}</td>
-                    <td className="px-4 py-4">{row.category_name || "—"}</td>
+                    <td className="px-4 py-4">
+                      {row.category_name || "—"}
+                    </td>
                     <td className="px-4 py-4 uppercase">
                       {row.unit === "pack"
-                        ? `PACK${row.pack_size ? ` (${row.pack_size} PCS)` : ""}`
+                        ? `PACK (${row.pack_size || 1} PCS)`
                         : "PCS"}
                     </td>
                     <td className="px-4 py-4 font-medium">
@@ -692,7 +913,7 @@ export default function Products() {
                       {formatCurrency(row.vvip_price)}
                     </td>
                     <td className="px-4 py-4">
-                      <BarcodeVisual value={row.barcode} name={row.name} compact />
+                      <BarcodeVisual value={row.barcode} />
                     </td>
                     <td className="px-4 py-4">
                       <span
@@ -706,7 +927,7 @@ export default function Products() {
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex justify-end gap-1">
                         <button
                           onClick={() => printBarcode(row)}
                           className="rounded-lg p-1.5 hover:bg-accent"
@@ -716,7 +937,10 @@ export default function Products() {
                         </button>
 
                         <button
-                          onClick={() => openEdit(row)}
+                          onClick={() => {
+                            setEditing(row);
+                            setModalOpen(true);
+                          }}
                           className="rounded-lg p-1.5 hover:bg-accent"
                           title="Edit"
                         >
@@ -741,14 +965,17 @@ export default function Products() {
 
         <div className="flex flex-col gap-3 border-t px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-sm text-muted-foreground">
-            Menampilkan {rangeStart}–{rangeEnd} dari {filteredProducts.length}
+            Menampilkan {rangeStart}–{rangeEnd} dari{" "}
+            {filteredProducts.length}
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setPage((current) => Math.max(1, current - 1))}
+              onClick={() =>
+                setPage((current) => Math.max(1, current - 1))
+              }
               disabled={page <= 1}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border disabled:opacity-40"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -759,10 +986,12 @@ export default function Products() {
 
             <button
               onClick={() =>
-                setPage((current) => Math.min(totalPages, current + 1))
+                setPage((current) =>
+                  Math.min(totalPages, current + 1)
+                )
               }
               disabled={page >= totalPages}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border disabled:opacity-40"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
@@ -770,27 +999,15 @@ export default function Products() {
         </div>
       </div>
 
-      <EntityFormModal
+      <ProductEditorModal
         open={modalOpen}
         onClose={() => {
           setModalOpen(false);
           setEditing(null);
         }}
         onSubmit={handleSubmit}
-        title={editing ? "Edit Barang" : "Tambah Barang"}
-        fields={makeFields(categories, formUnit)}
-        initialData={editing || { unit: "pcs", pack_size: 1 }}
-        /*
-          IMPORTANT:
-          EntityFormModal existing perlu memanggil callback saat unit berubah
-          agar field pack_size muncul/hilang dinamis.
-          Jika EntityFormModal belum mendukung onFieldChange, patch minimal:
-          onFieldChange?.(field.name, value)
-          lalu pasang di sini:
-          onFieldChange={(name, value) => {
-            if (name === "unit") setFormUnit(value);
-          }}
-        */
+        product={editing}
+        categories={categories}
       />
 
       <ProductImportModal
