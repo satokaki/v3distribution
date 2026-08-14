@@ -20,6 +20,7 @@
     "test:operational-branch-scope": "node --test tests/operationalBranchScope.test.mjs",
     "test:stock-reconciliation": "node --test tests/stockReconciliation.test.mjs",
     "test:backup-restore": "node --experimental-strip-types --test tests/backupRestore.test.mjs",
+    "test:product-import": "node --test tests/productImport.test.mjs",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },

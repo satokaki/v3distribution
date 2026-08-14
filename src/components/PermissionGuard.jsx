@@ -22,7 +22,7 @@ export default function PermissionGuard({ permission, children }) {
   const { loading, isSuperAdmin, hasBranchAssignment, hasPermission } = useBranchContext();
 
   if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Memuat akses user...</div>;
-  if (!hasBranchAssignment) {
+  if (!hasBranchAssignment && !isSuperAdmin) {
     return <AccessMessage icon={Building2} title="Cabang belum ditentukan" message="Hubungi administrator untuk memetakan akun ini ke satu cabang aktif." />;
   }
   if (!isSuperAdmin && permission && !hasPermission(permission)) {

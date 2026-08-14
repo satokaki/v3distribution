@@ -4,10 +4,13 @@ import { useEntityList } from "@/lib/useEntityList";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import EntityFormModal from "@/components/EntityFormModal";
+import ProductImportModal from "@/components/ProductImportModal";
 import { formatCurrency } from "@/lib/utils";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { nextProductIdentifiers } from "@/lib/productImportCore";
+import { FileUp, Plus, Pencil, Trash2 } from "lucide-react";
 
 const FIELDS = (categories, branches) => [
+  { name: "product_code", label: "ID Barang", type: "text", disabled: true, placeholder: "Otomatis" },
   { name: "sku", label: "SKU", type: "text", required: true, disabled: true, placeholder: "Otomatis" },
   { name: "barcode", label: "Barcode", type: "text" },
   { name: "name", label: "Nama Barang", type: "text", required: true, full: true },
@@ -30,6 +33,7 @@ const FIELDS = (categories, branches) => [
 ];
 
 const columns = [
+  { key: "product_code", label: "ID Barang", render: (v) => <span className="font-mono text-xs">{v || "—"}</span> },
   { key: "sku", label: "SKU", render: (v) => <span className="font-mono text-xs font-semibold">{v}</span> },
   { key: "name", label: "Nama Barang" },
   { key: "brand", label: "Merek" },
@@ -44,27 +48,22 @@ const columns = [
 ];
 
 export default function Products() {
-  const { data, loading, create, update, remove } = useEntityList("Product");
+  const { data, loading, create, update, remove, reload } = useEntityList("Product");
   const [categories, setCategories] = useState([]);
   const [branches, setBranches] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     base44.entities.ProductCategory.list().then(setCategories);
     base44.entities.Branch.list().then(setBranches);
   }, []);
 
-  const genSku = () => {
-    const prefix = "PST-LQD";
-    const n = (data.length || 0) + 1;
-    return `${prefix}-${String(n).padStart(6, "0")}`;
-  };
-
   const handleSubmit = async (values) => {
     const cat = categories.find(c => c.id === values.category_id);
     const payload = { ...values, category_name: cat?.name || "" };
-    if (!editing) payload.sku = genSku();
+    if (!editing) Object.assign(payload, nextProductIdentifiers(data));
     if (editing) await update(editing.id, payload);
     else await create(payload);
     setModalOpen(false);
@@ -75,18 +74,14 @@ export default function Products() {
       <PageHeader
         title="Master Barang"
         subtitle="Kelola produk vape: liquid, device, pod, coil, disposable, dll"
-        action={
-          <button onClick={() => { setEditing(null); setModalOpen(true); }} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus className="w-4 h-4" /> Tambah Barang
-          </button>
-        }
+        action={<div className="flex flex-wrap gap-2"><button onClick={() => setImportOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"><FileUp className="h-4 w-4" /> Import Barang</button><button onClick={() => { setEditing(null); setModalOpen(true); }} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90"><Plus className="w-4 h-4" /> Tambah Barang</button></div>}
       />
       <DataTable
         columns={columns}
         data={data}
         loading={loading}
-        searchKeys={["sku", "barcode", "name", "brand"]}
-        searchPlaceholder="Cari nama / SKU / barcode..."
+        searchKeys={["product_code", "sku", "barcode", "name", "brand"]}
+        searchPlaceholder="Cari ID barang / nama / SKU / barcode..."
         rowActions={(row) => (
           <>
             <button onClick={() => { setEditing(row); setModalOpen(true); }} className="p-1.5 rounded-lg hover:bg-accent"><Pencil className="w-4 h-4 text-muted-foreground" /></button>
@@ -95,6 +90,7 @@ export default function Products() {
         )}
       />
       <EntityFormModal open={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleSubmit} title={editing ? "Edit Barang" : "Tambah Barang"} fields={FIELDS(categories, branches)} initialData={editing || {}} />
+      <ProductImportModal open={importOpen} onClose={() => setImportOpen(false)} products={data} categories={categories} onCommit={async (records) => { for (let index = 0; index < records.length; index += 100) await base44.entities.Product.bulkCreate(records.slice(index, index + 100)); await reload(); }} />
     </div>
   );
 }

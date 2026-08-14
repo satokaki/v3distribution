@@ -37,6 +37,10 @@ export function entitiesForMode(mode: BackupMode) {
     .map(([entity, config]) => ({ entity, ...config }));
 }
 
+export function entitiesForReset(mode: BackupMode) {
+  return entitiesForMode(mode).reverse();
+}
+
 export const EXCLUDED_ENTITIES = {
   User: "Base44 authentication-managed entity; password, session, dan identity tidak boleh diekspor atau direstore.",
 } as const;

@@ -2,6 +2,10 @@
   "name": "Product",
   "type": "object",
   "properties": {
+    "product_code": {
+      "type": "string",
+      "title": "ID Barang"
+    },
     "sku": {
       "type": "string",
       "title": "SKU"

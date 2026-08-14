@@ -1,14 +1,18 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Archive, DatabaseBackup, Download, FileUp, Loader2, RotateCcw, ShieldCheck } from "lucide-react";
+import { Archive, DatabaseBackup, Download, FileUp, Loader2, RotateCcw, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useBranchContext } from "@/lib/BranchContext";
 import {
   BACKUP_PAGE_SIZE,
+  BACKUP_FUNCTION_NAME,
   BACKUP_SCHEMA_VERSION,
   RESTORE_BATCH_SIZE,
   calculateProgress,
   createBackupDocument,
+  formatFunctionInvocationError,
+  isResetConfirmed,
+  resetConfirmation,
   splitBatches,
   validateBackupFile,
 } from "@/lib/backupRestoreCore";
@@ -32,8 +36,12 @@ function unwrap(response) {
   return response?.data ?? response;
 }
 
-async function invoke(payload) {
-  return unwrap(await base44.functions.invoke("backupRestore", payload));
+async function invoke(payload, diagnosticAction = payload.action) {
+  try {
+    return unwrap(await base44.functions.invoke(BACKUP_FUNCTION_NAME, payload));
+  } catch (error) {
+    throw formatFunctionInvocationError(error, diagnosticAction);
+  }
 }
 
 function downloadJson(backupDocument) {
@@ -47,10 +55,11 @@ function downloadJson(backupDocument) {
 }
 
 function ModeCard({ icon: Icon, title, description, onClick, disabled, tone = "emerald" }) {
-  const toneClass = tone === "blue" ? "bg-blue-600 hover:bg-blue-700" : "bg-emerald-600 hover:bg-emerald-700";
+  const toneClass = tone === "red" ? "bg-red-600 hover:bg-red-700" : tone === "blue" ? "bg-blue-600 hover:bg-blue-700" : "bg-emerald-600 hover:bg-emerald-700";
+  const iconClass = tone === "red" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700";
   return (
     <div className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Icon className="h-5 w-5" /></div>
+      <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-xl ${iconClass}`}><Icon className="h-5 w-5" /></div>
       <h3 className="font-semibold text-slate-900">{title}</h3>
       <p className="mt-1 min-h-10 text-sm text-slate-500">{description}</p>
       <button disabled={disabled} onClick={onClick} className={`mt-5 w-full rounded-xl px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50 ${toneClass}`}>
@@ -75,7 +84,7 @@ export default function BackupRestore() {
     setLogs([]);
     setProgress({ ...EMPTY_PROGRESS, running: true, action: mode === "full" ? "Backup Full" : "Backup Transaksi" });
     try {
-      const registryData = await invoke({ action: "registry" });
+      const registryData = await invoke({ action: "registry" }, mode === "full" ? "backup_full" : "backup_transaksi");
       const registry = registryData[mode];
       const entities = {};
       let completedEntities = 0;
@@ -86,7 +95,7 @@ export default function BackupRestore() {
         while (true) {
           page += 1;
           setProgress((current) => ({ ...current, entity, field: "Membaca semua field", entityIndex: completedEntities + 1, entityTotal: registry.length, batch: page, percent: calculateProgress(completedEntities, registry.length) }));
-          const result = await invoke({ action: "backup_page", mode, entity, skip, limit: BACKUP_PAGE_SIZE });
+          const result = await invoke({ action: "backup_page", mode, entity, skip, limit: BACKUP_PAGE_SIZE }, `${mode === "full" ? "backup_full" : "backup_transaksi"}:${entity}:page_${page}`);
           records.push(...(result.records || []));
           addLog(`${entity}: ${records.length} record dibaca`);
           if (!result.has_more) break;
@@ -156,6 +165,61 @@ export default function BackupRestore() {
     }
   };
 
+  const runReset = async (mode) => {
+    const expected = resetConfirmation(mode);
+    const confirmation = window.prompt(`PERINGATAN: data akan dihapus permanen.\n\nKetik ${expected} untuk melanjutkan:`);
+    if (!isResetConfirmed(mode, confirmation)) {
+      if (confirmation !== null) toast.error("Teks konfirmasi tidak sesuai. Reset dibatalkan.");
+      return;
+    }
+    setLogs([]);
+    setProgress({ ...EMPTY_PROGRESS, running: true, action: mode === "full" ? "Reset Full" : "Reset Transaksi" });
+    try {
+      const registryData = await invoke({ action: "registry" });
+      const plan = registryData[mode === "full" ? "reset_full" : "reset_operational"];
+      const counts = [];
+      for (const { entity } of plan) {
+        setProgress((current) => ({ ...current, entity, field: "Menghitung record", entityTotal: plan.length }));
+        const result = await invoke({ action: "entity_count", entity });
+        counts.push({ entity, count: result.count || 0 });
+      }
+      const total = counts.reduce((sum, row) => sum + row.count, 0);
+      let processed = 0;
+      let failed = 0;
+
+      for (let entityIndex = 0; entityIndex < counts.length; entityIndex += 1) {
+        const { entity, count } = counts[entityIndex];
+        let batch = 0;
+        let entityDone = 0;
+        while (entityDone < count) {
+          batch += 1;
+          setProgress({ running: true, action: mode === "full" ? "Reset Full" : "Reset Transaksi", entity, field: "id · menghapus seluruh field record", entityIndex: entityIndex + 1, entityTotal: counts.length, processed, total, batch, batchTotal: Math.ceil(count / RESTORE_BATCH_SIZE), failed, percent: calculateProgress(processed, total) });
+          const result = await invoke({ action: "reset_batch", mode, entity, confirmation: expected });
+          if (!result.selected) break;
+          processed += result.deleted || 0;
+          entityDone += result.deleted || 0;
+          failed += result.failed || 0;
+          addLog(`${entity} batch ${batch}: ${result.deleted} dihapus, ${result.failed} gagal`, result.failed ? "error" : "success");
+          setProgress((current) => ({ ...current, processed, failed, percent: calculateProgress(processed, total) }));
+          if (result.failed) {
+            addLog(`${entity} dihentikan untuk mencegah retry loop. Record tersisa tidak dihapus.`, "error");
+            break;
+          }
+          if (!result.has_more) break;
+        }
+      }
+      const percent = total === 0 ? 100 : calculateProgress(processed, total);
+      setProgress((current) => ({ ...current, running: false, entity: "Selesai", field: failed ? "Reset parsial · periksa log" : "Seluruh record target telah dihapus", percent }));
+      if (failed || processed < total) toast.warning(`Reset parsial: ${processed}/${total} record dihapus.`);
+      else toast.success(`Reset selesai: ${processed} record dihapus.`);
+    } catch (error) {
+      const message = error?.response?.data?.error || error.message || "Reset gagal";
+      addLog(message, "error");
+      setProgress((current) => ({ ...current, running: false }));
+      toast.error(message);
+    }
+  };
+
   if (!isSuperAdmin) return <div className="rounded-xl border bg-white p-8 text-center text-sm text-slate-500">Menu ini hanya tersedia untuk Admin / Super Admin.</div>;
 
   return (
@@ -176,12 +240,20 @@ export default function BackupRestore() {
         <ModeCard icon={RotateCcw} title="Restore Full" description="Restore master lalu transaksi sesuai urutan dependency yang aman." disabled={progress.running} tone="blue" onClick={() => chooseRestoreFile("full")} />
       </div></section>
 
+      <section className="rounded-2xl border border-red-200 bg-red-50/40 p-4">
+        <div className="mb-3 flex items-center gap-2"><ShieldAlert className="h-5 w-5 text-red-700" /><div><h2 className="text-sm font-semibold uppercase tracking-wide text-red-800">Danger Zone · Reset Database</h2><p className="text-xs text-red-700">Backup dan reset tetap merupakan aksi terpisah. Pastikan file backup sudah tersimpan sebelum reset.</p></div></div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <ModeCard icon={Trash2} title="Reset Transaksi" description="Hapus transaksi, pembayaran, kas, mutasi, saldo dan ledger stok. Master tetap tersedia." disabled={progress.running} tone="red" onClick={() => runReset("operational")} />
+          <ModeCard icon={DatabaseBackup} title="Reset Full" description="Hapus seluruh entity aplikasi sesuai urutan dependency terbalik. Akun login Base44 tidak dihapus." disabled={progress.running} tone="red" onClick={() => runReset("full")} />
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-emerald-100 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between"><div><h2 className="font-semibold">Progress Proses</h2><p className="text-sm text-slate-500">{progress.action || "Belum ada proses berjalan"}</p></div><div className="flex items-center gap-2 text-2xl font-bold text-emerald-700">{progress.running && <Loader2 className="h-5 w-5 animate-spin" />}{progressLabel}</div></div>
         <div className="mt-4 h-3 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-700 transition-all duration-300" style={{ width: `${progress.percent}%` }} /></div>
         <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl bg-slate-50 p-3"><span className="text-slate-500">Entity</span><div className="mt-1 font-semibold">{progress.entity || "—"}</div><div className="text-xs text-slate-400">{progress.entityIndex}/{progress.entityTotal || 0}</div></div>
-          <div className="rounded-xl bg-slate-50 p-3"><span className="text-slate-500">Field sedang ditulis</span><div className="mt-1 break-words font-semibold text-emerald-700">{progress.field || "—"}</div></div>
+          <div className="rounded-xl bg-slate-50 p-3"><span className="text-slate-500">Field sedang diproses</span><div className="mt-1 break-words font-semibold text-emerald-700">{progress.field || "—"}</div></div>
           <div className="rounded-xl bg-slate-50 p-3"><span className="text-slate-500">Record</span><div className="mt-1 font-semibold">{progress.processed.toLocaleString("id-ID")} / {progress.total.toLocaleString("id-ID")}</div><div className="text-xs text-slate-400">Gagal: {progress.failed}</div></div>
           <div className="rounded-xl bg-slate-50 p-3"><span className="text-slate-500">Batch</span><div className="mt-1 font-semibold">{progress.batch} / {progress.batchTotal || 0}</div></div>
         </div>

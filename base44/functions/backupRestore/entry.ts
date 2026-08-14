@@ -5,6 +5,7 @@ import {
   BACKUP_SCHEMA_VERSION,
   EXCLUDED_ENTITIES,
   RESTORE_BATCH_SIZE,
+  entitiesForReset,
   entitiesForMode,
 } from "../../shared/backupRegistry.ts";
 
@@ -75,6 +76,8 @@ export default async function (req: Request) {
         restore_batch_size: RESTORE_BATCH_SIZE,
         operational: entitiesForMode("operational"),
         full: entitiesForMode("full"),
+        reset_operational: entitiesForReset("operational"),
+        reset_full: entitiesForReset("full"),
         excluded: EXCLUDED_ENTITIES,
       });
     }
@@ -130,6 +133,28 @@ export default async function (req: Request) {
         description: `${records.length - failed.length}/${records.length} record selesai`,
       }).catch(() => undefined);
       return json({ entity, processed: records.length, success: records.length - failed.length, failed: failed.length, results });
+    }
+
+    if (action === "reset_batch") {
+      const mode = body.mode === "full" ? "full" : "operational";
+      const expectedConfirmation = mode === "full" ? "RESET FULL" : "RESET TRANSAKSI";
+      if (body.confirmation !== expectedConfirmation) return json({ error: "RESET_CONFIRMATION_REQUIRED" }, 400);
+      const entity = String(body.entity || "");
+      assertEntity(entity, mode);
+      const allowed = new Set(entitiesForReset(mode).map((row) => row.entity));
+      if (!allowed.has(entity)) return json({ error: "ENTITY_NOT_RESETTABLE" }, 400);
+      const records = await db[entity].list("created_date", RESTORE_BATCH_SIZE, 0, ["id"]);
+      const results = [];
+      for (const record of records) {
+        try {
+          await db[entity].delete(record.id);
+          results.push({ id: record.id, status: "deleted" });
+        } catch (error: any) {
+          results.push({ id: record.id, status: "failed", error: error?.message || String(error) });
+        }
+      }
+      const failed = results.filter((row) => row.status === "failed");
+      return json({ entity, selected: records.length, deleted: records.length - failed.length, failed: failed.length, has_more: records.length === RESTORE_BATCH_SIZE || failed.length > 0, results });
     }
 
     return json({ error: "UNKNOWN_ACTION" }, 400);

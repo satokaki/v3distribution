@@ -1,6 +1,14 @@
 export const BACKUP_SCHEMA_VERSION = 1;
 export const BACKUP_PAGE_SIZE = 500;
 export const RESTORE_BATCH_SIZE = 25;
+export const BACKUP_FUNCTION_NAME = "backupRestore";
+
+export function formatFunctionInvocationError(error, action) {
+  const status = error?.response?.status ?? error?.status ?? "unknown";
+  const backendMessage = error?.response?.data?.error || error?.response?.data?.message || error?.message || "Unknown error";
+  const title = Number(status) === 404 ? "BACKUP FUNCTION NOT FOUND" : "BACKUP FUNCTION INVOCATION FAILED";
+  return new Error(`${title}\nFunction: ${BACKUP_FUNCTION_NAME}\nAction: ${action}\nHTTP: ${status}\nDetail: ${backendMessage}`);
+}
 
 export function splitBatches(records, size = RESTORE_BATCH_SIZE) {
   if (!Number.isInteger(size) || size < 1) throw new Error("INVALID_BATCH_SIZE");
@@ -12,6 +20,14 @@ export function splitBatches(records, size = RESTORE_BATCH_SIZE) {
 export function calculateProgress(processed, total) {
   if (!total) return 0;
   return Math.min(100, Math.max(0, Math.round((processed / total) * 100)));
+}
+
+export function resetConfirmation(mode) {
+  return mode === "full" ? "RESET FULL" : "RESET TRANSAKSI";
+}
+
+export function isResetConfirmed(mode, value) {
+  return value === resetConfirmation(mode);
 }
 
 export function validateBackupFile(backup, expectedMode) {
