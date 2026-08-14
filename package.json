@@ -19,6 +19,7 @@
     "test:inventory-report-branch-only": "node --test tests/inventoryReportBranchOnly.test.mjs",
     "test:operational-branch-scope": "node --test tests/operationalBranchScope.test.mjs",
     "test:stock-reconciliation": "node --test tests/stockReconciliation.test.mjs",
+    "test:backup-restore": "node --experimental-strip-types --test tests/backupRestore.test.mjs",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },

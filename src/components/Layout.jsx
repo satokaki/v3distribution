@@ -21,6 +21,7 @@ import {
   Percent,
   FileBarChart,
   Database,
+  DatabaseBackup,
   Settings,
   Menu,
   X,
@@ -92,6 +93,7 @@ const menuGroups = [
         adminOnly: true,
         children: [
           { label: "User & Hak Akses", path: "/pengaturan/user", permission: "system.manage" },
+          { label: "Backup & Restore", path: "/pengaturan/backup-restore", permission: "system.manage", icon: DatabaseBackup },
           { label: "System", path: "/system", permission: "system.manage" },
         ],
       },

@@ -37,6 +37,7 @@ import Piutang from '@/pages/Piutang';
 import Komisi from '@/pages/Komisi';
 import Laporan from '@/pages/Laporan';
 import PengaturanUser from '@/pages/PengaturanUser';
+import BackupRestore from '@/pages/BackupRestore';
 import PermissionGuard from '@/components/PermissionGuard';
 import BlueprintModule from '@/pages/BlueprintModule';
 // Add page imports here
@@ -97,6 +98,7 @@ const AuthenticatedApp = () => {
           <Route path="/komisi" element={<PermissionGuard permission="sales.view"><Komisi /></PermissionGuard>} />
           <Route path="/laporan" element={<PermissionGuard permission="report.view"><Laporan /></PermissionGuard>} />
           <Route path="/pengaturan/user" element={<PermissionGuard permission="system.manage"><PengaturanUser /></PermissionGuard>} />
+          <Route path="/pengaturan/backup-restore" element={<PermissionGuard permission="system.manage"><BackupRestore /></PermissionGuard>} />
           <Route path="/pricing" element={<PermissionGuard permission="pricing.view"><BlueprintModule title="Pricing Engine" description="Aturan harga retail, grosir, customer, dan cabang." capabilities={["Harga per tier", "Harga khusus customer", "Riwayat perubahan harga", "Approval harga"]} /></PermissionGuard>} />
           <Route path="/bank" element={<PermissionGuard permission="bank.view"><BlueprintModule title="Bank" description="Pengelolaan rekening dan transaksi bank per cabang." capabilities={["Rekening cabang", "Penerimaan dan pengeluaran", "Transfer antar rekening", "Saldo bank"]} /></PermissionGuard>} />
           <Route path="/rekonsiliasi" element={<PermissionGuard permission="reconciliation.view"><BlueprintModule title="Rekonsiliasi" description="Pencocokan kas, bank, dan transaksi operasional." capabilities={["Rekonsiliasi harian", "Selisih transaksi", "Approval penyesuaian", "Jejak audit"]} /></PermissionGuard>} />
