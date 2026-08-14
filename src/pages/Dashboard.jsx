@@ -3,6 +3,11 @@ import { base44 } from "@/api/base44Client";
 import { formatCurrency, formatNumber } from "@/lib/utils";
 import { useBranchContext } from "@/lib/BranchContext";
 import {
+  dashboardInventorySummary, dashboardTransferSummary, isPostedInMonth,
+  isPostedOn, jakartaBusinessDate, resolveDashboardInventory,
+  transferDestinationId, transferSourceId,
+} from "@/lib/dashboardReadModelCore";
+import {
   AlertTriangle, ArrowDownLeft, ArrowUpRight, Banknote,
   Boxes, CalendarDays, CircleDollarSign, Clock3, Landmark,
   PackageSearch, ReceiptText, Scale, ShoppingCart, Store, Wallet,
@@ -14,8 +19,8 @@ const EMPTY_DATA = {
   cashTransactions: [], stockTransfers: [], reconciliationDifference: 0,
 };
 
-const jakartaDate = (date = new Date()) => date.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-const recordDate = (record) => (record.date || record.created_date || "").slice(0, 10);
+const jakartaDate = (date = new Date()) => jakartaBusinessDate(date);
+const recordDate = (record) => jakartaBusinessDate(record.date || record.transaction_date || record.created_date);
 const outstanding = (item) => Math.max(0, (item.amount || 0) - (item.paid_amount || 0));
 
 function MetricCard({ icon: Icon, label, value, detail = "", tone = "blue" }) {
@@ -63,7 +68,9 @@ function ActivityItem({ item }) {
 }
 
 export default function Dashboard() {
-  const { activeBranchId, isAllBranches, isSuperAdmin, accessibleBranches, activeBranch } = useBranchContext();
+  const { readScopeBranchId, readScopeBranch, isAllBranches, isSuperAdmin, accessibleBranches } = useBranchContext();
+  const activeBranchId = readScopeBranchId;
+  const activeBranch = readScopeBranch;
   const [data, setData] = useState(EMPTY_DATA);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -86,38 +93,41 @@ export default function Dashboard() {
     return () => { cancelled = true; };
   }, [activeBranchId]);
 
+  const resolvedInventory = useMemo(() => resolveDashboardInventory({
+    balances: data.stock,
+    products: data.products,
+    branchIds: isAllBranches ? null : activeBranchId ? [activeBranchId] : [],
+  }), [activeBranchId, data.products, data.stock, isAllBranches]);
+
   const scoped = useMemo(() => {
     const byBranch = (items, field = "branch_id") => isAllBranches ? items : items.filter((item) => item[field] === activeBranchId);
-    const transfers = isAllBranches ? data.stockTransfers : data.stockTransfers.filter((item) => item.from_branch_id === activeBranchId || item.to_branch_id === activeBranchId);
+    const transfers = isAllBranches ? data.stockTransfers : data.stockTransfers.filter((item) => transferSourceId(item) === activeBranchId || transferDestinationId(item) === activeBranchId);
     return {
       products: data.products,
       accounts: byBranch(data.accounts),
-      stock: byBranch(data.stock),
+      inventory: resolvedInventory,
       sales: byBranch(data.sales),
       purchases: byBranch(data.purchases),
       receivables: byBranch(data.receivables),
       cash: byBranch(data.cashTransactions),
       transfers,
     };
-  }, [data, activeBranchId, isAllBranches]);
+  }, [data, activeBranchId, isAllBranches, resolvedInventory]);
 
   const dashboard = useMemo(() => {
     const today = jakartaDate();
     const month = today.slice(0, 7);
     const postedSales = scoped.sales.filter((item) => item.status === "posted");
-    const todaySales = postedSales.filter((item) => recordDate(item) === today);
-    const monthSales = postedSales.filter((item) => recordDate(item).startsWith(month));
+    const todaySales = postedSales.filter((item) => isPostedOn(item, today));
+    const monthSales = postedSales.filter((item) => isPostedInMonth(item, month));
     const cashSales = monthSales.filter((item) => item.payment_method !== "kredit");
     const creditSales = monthSales.filter((item) => item.payment_method === "kredit");
     const runningReceivables = scoped.receivables.filter((item) => item.status !== "paid");
     const overdueReceivables = runningReceivables.filter((item) => item.due_date && item.due_date.slice(0, 10) < today);
-    const productMap = Object.fromEntries(scoped.products.map((item) => [item.id, item]));
-    const lowStock = scoped.stock.filter((item) => (item.quantity || 0) <= (item.min_stock || 0));
-    const inventoryValue = scoped.stock.reduce((sum, item) => sum + (item.quantity || 0) * (productMap[item.product_id]?.purchase_price || 0), 0);
+    const inventory = dashboardInventorySummary(scoped.inventory);
     const cashBalance = scoped.accounts.filter((item) => item.account_type === "kas").reduce((sum, item) => sum + (item.current_balance || 0), 0);
     const bankBalance = scoped.accounts.filter((item) => item.account_type === "bank").reduce((sum, item) => sum + (item.current_balance || 0), 0);
-    const incoming = scoped.transfers.filter((item) => item.status === "posted" && (isAllBranches || item.to_branch_id === activeBranchId));
-    const outgoing = scoped.transfers.filter((item) => item.status === "posted" && (isAllBranches || item.from_branch_id === activeBranchId));
+    const transfer = dashboardTransferSummary(scoped.transfers, isAllBranches ? null : [activeBranchId]);
     const activities = [
       ...scoped.sales.map((item) => ({ ...item, kind: "sale", value: item.total || 0 })),
       ...scoped.purchases.map((item) => ({ ...item, kind: "purchase", value: item.total || 0 })),
@@ -133,10 +143,11 @@ export default function Dashboard() {
       receivable: runningReceivables.reduce((sum, item) => sum + outstanding(item), 0),
       overdue: overdueReceivables.reduce((sum, item) => sum + outstanding(item), 0),
       overdueCount: overdueReceivables.length,
-      todayPurchases: scoped.purchases.filter((item) => item.status === "posted" && recordDate(item) === today).reduce((sum, item) => sum + (item.total || 0), 0),
-      lowStock: lowStock.length, inventoryValue, cashBalance, bankBalance,
-      incoming: incoming.reduce((sum, item) => sum + (item.total_qty || 0), 0),
-      outgoing: outgoing.reduce((sum, item) => sum + (item.total_qty || 0), 0),
+      todayPurchases: scoped.purchases.filter((item) => isPostedOn(item, today)).reduce((sum, item) => sum + (item.total || 0), 0),
+      lowStock: inventory.low_stock, inventoryValue: inventory.inventory_value, cashBalance, bankBalance,
+      incoming: transfer.incoming_qty, incomingCount: transfer.incoming_count,
+      outgoing: transfer.outgoing_qty, outgoingCount: transfer.outgoing_count,
+      transit: transfer.transit_qty, transitCount: transfer.transit_count,
       activities,
     };
   }, [scoped, activeBranchId, isAllBranches]);
@@ -144,7 +155,7 @@ export default function Dashboard() {
   const scopeLabel = isAllBranches ? "Semua Cabang" : activeBranch?.branch_name || accessibleBranches.find((item) => item.branch_id === activeBranchId)?.branch_name || "Cabang belum dipetakan";
 
   if (isSuperAdmin && isAllBranches) {
-    return <HeadOfficeDashboard data={data} loading={loading} error={error} />;
+    return <HeadOfficeDashboard data={data} inventory={resolvedInventory} loading={loading} error={error} />;
   }
 
   return (
@@ -173,8 +184,9 @@ export default function Dashboard() {
             <MetricCard icon={Boxes} label="Nilai Persediaan" value={formatCurrency(dashboard.inventoryValue)} detail="Harga beli × stok" tone="blue" />
             <MetricCard icon={Banknote} label="Saldo Kas" value={formatCurrency(dashboard.cashBalance)} tone="green" />
             <MetricCard icon={Landmark} label="Saldo Bank" value={formatCurrency(dashboard.bankBalance)} tone="blue" />
-            <MetricCard icon={ArrowDownLeft} label="Mutasi Masuk" value={formatNumber(dashboard.incoming)} detail="Qty posted" tone="purple" />
-            <MetricCard icon={ArrowUpRight} label="Mutasi Keluar" value={formatNumber(dashboard.outgoing)} detail="Qty posted" tone="amber" />
+            <MetricCard icon={ArrowDownLeft} label="Mutasi Masuk" value={formatNumber(dashboard.incoming)} detail={`${dashboard.incomingCount} mutasi approved`} tone="purple" />
+            <MetricCard icon={ArrowUpRight} label="Mutasi Keluar" value={formatNumber(dashboard.outgoing)} detail={`${dashboard.outgoingCount} mutasi approved`} tone="amber" />
+            <MetricCard icon={Clock3} label="Barang Dalam Perjalanan" value={formatNumber(dashboard.transit)} detail={`${dashboard.transitCount} mutasi approved`} tone="purple" />
             <MetricCard icon={Scale} label="Selisih Rekonsiliasi" value={formatCurrency(data.reconciliationDifference || 0)} detail="Menunggu modul rekonsiliasi" tone="slate" />
           </div>
 

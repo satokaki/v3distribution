@@ -3,7 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { useBranchContext } from "@/lib/BranchContext";
 import PageHeader from "@/components/PageHeader";
 import { formatCurrency } from "@/lib/utils";
-import { TrendingUp, TrendingDown, Wallet, Package, Receipt, Coins, BarChart3 } from "lucide-react";
+import { buildInventoryReport, filterInventoryReport, inventoryReportExportRows, INVENTORY_STATUSES, INVENTORY_TYPES, summarizeInventoryReport } from "@/lib/inventoryReportCore";
+import { fetchInventoryReportData } from "@/lib/inventoryReportData";
+import { TrendingUp, TrendingDown, Wallet, Package, Receipt, Coins, BarChart3, Download, FileDown, Search } from "lucide-react";
 
 const inputCls = "px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 const TABS = [
@@ -24,11 +26,14 @@ function inRange(dateStr, from, to) {
 }
 
 export default function Laporan() {
-  const { accessibleBranches, isSuperAdmin } = useBranchContext();
+  const { accessibleBranches, isSuperAdmin, activeBranchId } = useBranchContext();
   const [tab, setTab] = useState("ringkasan");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [branchId, setBranchId] = useState("");
+  const [stockType, setStockType] = useState("Semua");
+  const [stockStatus, setStockStatus] = useState("Semua");
+  const [stockSearch, setStockSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [raw, setRaw] = useState({ sales: [], purchases: [], cash: [], stock: [], products: [], commissions: [], payables: [], receivables: [] });
 
@@ -40,23 +45,23 @@ export default function Laporan() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [sales, purchases, cash, stock, products, commissions, payables, receivables] = await Promise.all([
+      const [sales, purchases, cash, inventoryData, commissions, payables, receivables] = await Promise.all([
         base44.entities.Sale.list("-date", 500),
         base44.entities.Purchase.list("-date", 500),
         base44.entities.CashTransaction.list("-date", 500),
-        base44.entities.StockBalance.list("-created_date", 500),
-        base44.entities.Product.list(),
+        fetchInventoryReportData(isSuperAdmin ? "" : activeBranchId),
         base44.entities.Commission.list("-date", 500),
         base44.entities.Payable.list("-date", 500),
         base44.entities.Receivable.list("-date", 500),
       ]);
+      const [stock, products] = inventoryData;
       setRaw({ sales, purchases, cash, stock, products, commissions, payables, receivables });
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => { if (isSuperAdmin || activeBranchId) loadAll(); }, [activeBranchId, isSuperAdmin]);
 
   const scope = (arr, bidField = "branch_id") => {
     let r = arr || [];
@@ -77,14 +82,31 @@ export default function Laporan() {
   const komisiAccrued = commissionsR.filter((c) => c.status === "accrued").reduce((s, x) => s + (x.amount || 0), 0);
   const komisiPaid = commissionsR.filter((c) => c.status === "paid").reduce((s, x) => s + (x.amount || 0), 0);
 
-  const productPrice = useMemo(() => new Map((raw.products || []).map((p) => [p.id, p.purchase_price || 0])), [raw.products]);
-  const stockR = useMemo(() => scope(raw.stock, "branch_id"), [raw.stock, allowedBranchIds, branchId]);
-  const stockValue = stockR.reduce((s, x) => s + (x.quantity || 0) * (productPrice.get(x.product_id) || 0), 0);
+  const reportBranchIds = useMemo(() => {
+    if (!isSuperAdmin) return activeBranchId ? [activeBranchId] : [];
+    return branchId ? [branchId] : null;
+  }, [activeBranchId, branchId, isSuperAdmin]);
+  const inventoryRows = useMemo(() => buildInventoryReport({ balances: raw.stock, products: raw.products, branchIds: reportBranchIds, branches: accessibleBranches }), [raw.stock, raw.products, reportBranchIds, accessibleBranches]);
+  const stockR = useMemo(() => filterInventoryReport(inventoryRows, { type: stockType, status: stockStatus, search: stockSearch }), [inventoryRows, stockType, stockStatus, stockSearch]);
+  const stockSummary = useMemo(() => summarizeInventoryReport(stockR), [stockR]);
+  const stockValue = stockSummary.inventory_value;
 
   const hutangSisa = scope(raw.payables).reduce((s, x) => s + ((x.amount || 0) - (x.paid_amount || 0)), 0);
   const piutangSisa = scope(raw.receivables).reduce((s, x) => s + ((x.amount || 0) - (x.paid_amount || 0)), 0);
 
-  const branchesForFilter = accessibleBranches;
+  const exportInventoryCsv = () => {
+    const rows = inventoryReportExportRows(stockR, { includeBranch: isSuperAdmin });
+    if (!rows.length) return;
+    const headers = Object.keys(rows[0]);
+    const escape = (value) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const csv = [headers.map(escape).join(","), ...rows.map((row) => headers.map((header) => escape(row[header])).join(","))].join("\n");
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `laporan-inventory-${branchId || activeBranchId || "semua-cabang"}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   const Card = ({ label, value, icon: Icon, tone }) => (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -205,20 +227,30 @@ export default function Laporan() {
           )}
 
           {tab === "stok" && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                <Card label="Item Stok" value={stockR.length} icon={Package} />
-                <Card label="Total Qty" value={stockR.reduce((s, x) => s + (x.quantity || 0), 0)} icon={Package} />
+            <div className="space-y-4 print:space-y-3">
+              <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
+                <div className="flex flex-wrap items-end gap-2">
+                  <div><label className="mb-1 block text-xs text-muted-foreground">Jenis Barang</label><select value={stockType} onChange={(event) => setStockType(event.target.value)} className={inputCls}>{INVENTORY_TYPES.map((value) => <option key={value}>{value}</option>)}</select></div>
+                  <div><label className="mb-1 block text-xs text-muted-foreground">Status Stok</label><select value={stockStatus} onChange={(event) => setStockStatus(event.target.value)} className={inputCls}>{INVENTORY_STATUSES.map((value) => <option key={value}>{value}</option>)}</select></div>
+                  <div><label className="mb-1 block text-xs text-muted-foreground">Pencarian</label><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><input value={stockSearch} onChange={(event) => setStockSearch(event.target.value)} placeholder="SKU / produk / brand / kategori..." className={`${inputCls} w-72 pl-9`} /></div></div>
+                </div>
+                <div className="flex gap-2"><button onClick={exportInventoryCsv} disabled={!stockR.length} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium disabled:opacity-50"><Download className="h-4 w-4" />Export CSV</button><button onClick={() => window.print()} disabled={!stockR.length} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium disabled:opacity-50"><FileDown className="h-4 w-4" />Export PDF</button></div>
+              </div>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                <Card label="Item Stok (Cabang–Produk)" value={stockSummary.item_rows} icon={Package} />
+                <Card label="Total Qty" value={stockSummary.total_quantity} icon={Package} />
                 <Card label="Nilai Stok" value={formatCurrency(stockValue)} icon={Coins} tone="text-primary" />
+                <Card label="Stok Menipis" value={stockSummary.low_stock} icon={TrendingDown} tone="text-amber-600" />
+                <Card label="Stok Habis" value={stockSummary.out_of_stock} icon={TrendingDown} tone="text-rose-600" />
               </div>
               <TableWrap>
-                <thead><tr><Th>SKU</Th><Th>Produk</Th><Th>Cabang</Th><Th>Gudang</Th><Th right>Qty</Th><Th right>HPP</Th><Th right>Nilai</Th></tr></thead>
+                <thead><tr><Th>SKU</Th><Th>Produk</Th><Th>Brand</Th><Th>Kategori</Th>{isSuperAdmin && <Th>Cabang</Th>}<Th right>Qty</Th><Th right>Minimum</Th><Th>Status</Th><Th right>HPP / Unit</Th><Th right>Nilai Persediaan</Th></tr></thead>
                 <tbody>
-                  {stockR.length === 0 ? <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">Tidak ada data</td></tr> :
+                  {stockR.length === 0 ? <tr><td colSpan={isSuperAdmin ? 10 : 9} className="px-4 py-10 text-center text-muted-foreground">Tidak ada data</td></tr> :
                     stockR.map((s) => (
                       <tr key={s.id} className="hover:bg-accent/30">
-                        <Td>{s.sku || "—"}</Td><Td>{s.product_name || "—"}</Td><Td>{s.branch_code || "—"}</Td><Td>{s.warehouse_name || "—"}</Td>
-                        <Td right>{s.quantity || 0}</Td><Td right>{formatCurrency(productPrice.get(s.product_id) || 0)}</Td><Td right>{formatCurrency((s.quantity || 0) * (productPrice.get(s.product_id) || 0))}</Td>
+                        <Td>{s.sku || "—"}</Td><Td>{s.product_name || "—"}</Td><Td>{s.brand || "—"}</Td><Td>{s.category_name || s.type_label}</Td>{isSuperAdmin && <Td>{s.branch_name}</Td>}
+                        <Td right>{s.quantity || 0} {s.unit}</Td><Td right>{s.min_stock || 0}</Td><Td><span className={`rounded-full px-2 py-1 text-xs font-semibold ${s.status === "HABIS" ? "bg-red-100 text-red-700" : s.status === "MENIPIS" ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"}`}>{s.status}</span></Td><Td right>{formatCurrency(s.unit_cost || 0)}</Td><Td right>{formatCurrency(s.inventory_value || 0)}</Td>
                       </tr>
                     ))}
                 </tbody>

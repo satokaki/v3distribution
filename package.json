@@ -15,6 +15,9 @@
     "test:inventory-branch-only": "node --test tests/inventoryBranchOnly.test.mjs",
     "test:stock-card-branch-only": "node --test tests/stockCardBranchOnly.test.mjs",
     "test:stock-transfer-branch-only": "node --experimental-strip-types --test tests/stockTransferBranchOnly.test.mjs",
+    "test:dashboard-branch-only": "node --test tests/dashboardBranchOnly.test.mjs",
+    "test:inventory-report-branch-only": "node --test tests/inventoryReportBranchOnly.test.mjs",
+    "test:operational-branch-scope": "node --test tests/operationalBranchScope.test.mjs",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },

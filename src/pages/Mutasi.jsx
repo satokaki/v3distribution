@@ -22,12 +22,13 @@ const total = (row) => (row.items || []).reduce((sum, item) => sum + Number(item
 
 export default function Mutasi() {
   const { toast } = useToast();
-  const { activeBranchId, accessibleBranches, isAllBranches, isSuperAdmin } = useBranchContext();
+  const { operationalBranchId, readScopeBranchId, accessibleBranches, isAllBranches, isSuperAdmin } = useBranchContext();
+  const activeBranchId = readScopeBranchId;
   const [rows, setRows] = useState([]); const [loading, setLoading] = useState(true); const [tab, setTab] = useState("outgoing");
   const [formOpen, setFormOpen] = useState(false); const [editing, setEditing] = useState(null); const [receiving, setReceiving] = useState(null);
   const approvalRequests = useRef(new Map());
   const mappedIds = useMemo(() => new Set(accessibleBranches.map((row) => row.branch_id)), [accessibleBranches]);
-  const sourceMapping = accessibleBranches.find((row) => row.is_default) || accessibleBranches[0];
+  const sourceMapping = accessibleBranches.find((row) => row.branch_id === operationalBranchId);
   const canCreate = Boolean(sourceMapping) && (isSuperAdmin || sourceMapping?.can_create);
 
   const load = useCallback(async () => {

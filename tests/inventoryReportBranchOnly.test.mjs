@@ -1,0 +1,18 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { buildInventoryReport, filterInventoryReport, inventoryReportExportRows, summarizeInventoryReport } from "../src/lib/inventoryReportCore.js";
+
+const product = { id: "P1", name: "Liquid Mint", sku: "LQ-1", brand: "V3", category_name: "Liquid", purchase_price: 50000, min_stock: 10 };
+const legacy = [{ id: "L1", branch_id: "B1", product_id: "P1", warehouse_id: "W1", quantity: 60 }, { id: "L2", branch_id: "B1", product_id: "P1", warehouse_id: "W2", quantity: 40 }];
+
+test("A - legacy-only report aggregates warehouse balances", () => { assert.equal(buildInventoryReport({ balances: legacy, products: [product] })[0].quantity, 100); });
+test("B - branch balance overrides legacy without double count", () => { const rows = buildInventoryReport({ balances: [...legacy, { id: "B", branch_id: "B1", product_id: "P1", balance_scope: "branch", quantity: 90 }], products: [product] }); assert.deepEqual([rows.length, rows[0].quantity], [1, 90]); });
+test("C - operational scope cannot include another branch", () => { const rows = buildInventoryReport({ balances: [...legacy, { id: "X", branch_id: "B2", product_id: "P1", balance_scope: "branch", quantity: 20 }], products: [product], branchIds: ["B1"] }); assert.deepEqual(rows.map((row) => row.branch_id), ["B1"]); });
+test("D - Head Office all-branch report resolves each branch first", () => { const rows = buildInventoryReport({ balances: [...legacy, { id: "B", branch_id: "B1", product_id: "P1", balance_scope: "branch", quantity: 90 }, { id: "X", branch_id: "B2", product_id: "P1", balance_scope: "branch", quantity: 20 }], products: [product] }); assert.equal(summarizeInventoryReport(rows).total_quantity, 110); });
+test("E - summary defines item rows and stock states", () => { const rows = buildInventoryReport({ balances: [{ branch_id: "B1", product_id: "P1", balance_scope: "branch", quantity: 5 }, { branch_id: "B2", product_id: "P1", balance_scope: "branch", quantity: 0 }], products: [product] }); assert.deepEqual(summarizeInventoryReport(rows), { item_rows: 2, total_quantity: 5, inventory_value: 250000, low_stock: 1, out_of_stock: 1 }); });
+test("F - type status and search filters share normalized rows", () => { const rows = buildInventoryReport({ balances: [{ branch_id: "B1", product_id: "P1", balance_scope: "branch", quantity: 5 }], products: [product], branches: [{ id: "B1", name: "Patrang" }] }); assert.equal(filterInventoryReport(rows, { type: "Liquid", status: "MENIPIS", search: "patrang" }).length, 1); });
+test("G - export consumes report read model and can include branch", () => { const rows = buildInventoryReport({ balances: [{ branch_id: "B1", product_id: "P1", balance_scope: "branch", quantity: 5 }], products: [product], branches: [{ id: "B1", name: "Patrang" }] }); assert.deepEqual(Object.keys(inventoryReportExportRows(rows, { includeBranch: true })[0]), ["SKU", "Produk", "Brand", "Kategori", "Cabang", "Qty", "Minimum", "Status", "HPP / Unit", "Nilai Persediaan"]); });
+test("H - report UI contains no warehouse dimension", () => { const source = fs.readFileSync(new URL("../src/pages/Laporan.jsx", import.meta.url), "utf8"); assert.doesNotMatch(source, /warehouse|gudang/i); });
+test("I - report data loader paginates and fails explicitly", () => { const source = fs.readFileSync(new URL("../src/lib/inventoryReportData.js", import.meta.url), "utf8"); assert.match(source, /page \* REPORT_PAGE_SIZE/); assert.match(source, /REPORT_DATA_LIMIT/); });
+test("J - report core reuses the Stage 3A resolver", () => { const source = fs.readFileSync(new URL("../src/lib/inventoryReportCore.js", import.meta.url), "utf8"); assert.match(source, /resolveBranchInventory/); });

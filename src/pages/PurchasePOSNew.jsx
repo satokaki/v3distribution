@@ -15,9 +15,10 @@ const addDays = (date, days) => { const value = new Date(`${date}T00:00:00`); va
 
 export default function PurchasePOSNew() {
   const { toast } = useToast();
-  const { activeBranchId, activeBranch, isAllBranches } = useBranchContext();
+  const { operationalBranchId, operationalBranch } = useBranchContext();
   const searchRef = useRef(null);
-  const branchId = isAllBranches ? "" : activeBranchId;
+  const branchId = operationalBranchId;
+  const activeBranch = operationalBranch; // presentation-only compatibility inside this component
   const [master, setMaster] = useState({ suppliers: [], products: [], accounts: [] });
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -76,7 +77,7 @@ export default function PurchasePOSNew() {
   const validate = () => { if (!branchId) throw new Error("Head Office harus memilih satu cabang."); if (!supplier) throw new Error("Pilih supplier."); if (!items.length) throw new Error("Tambahkan minimal satu produk."); if (method === "tunai" && !accountId) throw new Error("Cabang belum mempunyai rekening pembayaran aktif."); if (method === "kredit" && !dueDate) throw new Error("Isi tanggal jatuh tempo."); };
   const saveDraft = async () => { try { validate(); setBusy(true); let code; if (editingDraftId) { code = drafts.find((x) => x.id === editingDraftId)?.code || "Draft"; await base44.entities.Purchase.update(editingDraftId, { ...payload(), status: "draft" }); } else { code = await generateDailyCode("Purchase", "DRF-PBL", date); await base44.entities.Purchase.create({ ...payload(), code, status: "draft" }); } await writeAuditLog({ action: editingDraftId ? "update_purchase_draft" : "create_purchase_draft", module: "pembelian", description: `Draft ${code}`, branchId }); toast({ title: "Draft pembelian tersimpan", description: code }); reset(); await loadDrafts(); } catch (error) { toast({ title: "Draft gagal disimpan", description: error.message, variant: "destructive" }); } finally { setBusy(false); } };
   const post = async () => { try { validate(); setBusy(true); const created = await postPurchase(payload()); if (editingDraftId) await base44.entities.Purchase.delete(editingDraftId); toast({ title: "Pembelian berhasil diposting", description: created.code }); reset(); await loadDrafts(); } catch (error) { toast({ title: "Posting gagal", description: error.message, variant: "destructive" }); } finally { setBusy(false); } };
-  const openDraft = (draft) => { setEditingDraftId(draft.id); setSupplierId(draft.supplier_id || ""); setAccountId(draft.account_id || ""); setDate(draft.date || localDate()); setDueDate(draft.due_date || ""); setMethod(draft.payment_method || "kredit"); setChannel(draft.payment_channel || "cash"); setNote(draft.note || ""); setItems((draft.items || []).map((x) => ({ ...x, discount_percent: x.discount_percent || 0 }))); };
+  const openDraft = (draft) => { if (draft.branch_id && draft.branch_id !== branchId) toast({ title: "Draft dibuat pada cabang berbeda", description: "Rekening dan posting menggunakan cabang operasional saat ini." }); setEditingDraftId(draft.id); setSupplierId(draft.supplier_id || ""); setAccountId(draft.account_id || ""); setDate(draft.date || localDate()); setDueDate(draft.due_date || ""); setMethod(draft.payment_method || "kredit"); setChannel(draft.payment_channel || "cash"); setNote(draft.note || ""); setItems((draft.items || []).map((x) => ({ ...x, discount_percent: x.discount_percent || 0 }))); };
   const deleteDraft = async (draft) => { await base44.entities.Purchase.delete(draft.id); await loadDrafts(); toast({ title: `Draft ${draft.code} dihapus` }); };
 
   if (loading) return <div className="py-20 text-center text-sm text-muted-foreground">Menyiapkan terminal pembelian...</div>;

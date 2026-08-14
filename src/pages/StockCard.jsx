@@ -27,7 +27,9 @@ function Metric({ icon: Icon, label, value, tone }) {
 
 export default function StockCard() {
   const { toast } = useToast();
-  const { activeBranchId, activeBranch, accessibleBranches, isSuperAdmin, isAllBranches } = useBranchContext();
+  const { readScopeBranchId, readScopeBranch, accessibleBranches, isSuperAdmin, isAllBranches } = useBranchContext();
+  const activeBranchId = readScopeBranchId;
+  const activeBranch = readScopeBranch;
   const today = jakartaDay(new Date());
   const initialStart = new Date(); initialStart.setDate(initialStart.getDate() - 14);
   const initialDateFrom = jakartaDay(initialStart);

@@ -1,0 +1,22 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { initialReadScopeBranchId, isOperationalBranchId, resolveOperationalBranchId } from "../src/lib/branchContextCore.js";
+
+const mappings = [{ branch_id: "V3_PUSAT", is_default: true }, { branch_id: "MASTRIP" }, { branch_id: "PATRANG" }];
+const source = (file) => fs.readFileSync(new URL(file, import.meta.url), "utf8");
+
+test("A - Admin default Pusat has operational Pusat and read scope all", () => { const operational = resolveOperationalBranchId({ default_branch_id: "V3_PUSAT" }, mappings); assert.deepEqual([operational, initialReadScopeBranchId({ isSuperAdmin: true, operationalBranchId: operational, mappings })], ["V3_PUSAT", "all"]); });
+test("B - Dashboard all uses read scope without changing operational branch", () => { const context = source("../src/lib/BranchContext.jsx"); assert.match(context, /operationalBranchId/); assert.match(context, /readScopeBranchId/); assert.match(source("../src/pages/Dashboard.jsx"), /readScopeBranchId/); });
+test("C - Dashboard Mastrip cannot leak into Sale operational reads", () => { const sale = source("../src/pages/SalesPOSNew.jsx"); assert.match(sale, /const branchId = operationalBranchId/); assert.doesNotMatch(sale, /readScopeBranchId|isAllBranches/); });
+test("D - Dashboard Patrang cannot leak into Purchase operational reads", () => { const purchase = source("../src/pages/PurchasePOSNew.jsx"); assert.match(purchase, /const branchId = operationalBranchId/); assert.doesNotMatch(purchase, /readScopeBranchId|isAllBranches/); });
+test("E - Sale draft payload uses operational branch", () => { const sale = source("../src/pages/SalesPOSNew.jsx"); assert.match(sale, /branch_id: branchId/); assert.match(sale, /Draft dibuat pada cabang berbeda/); });
+test("F - Purchase draft payload uses operational branch", () => { const purchase = source("../src/pages/PurchasePOSNew.jsx"); assert.match(purchase, /branch_id: branchId/); assert.match(purchase, /Draft dibuat pada cabang berbeda/); });
+test("G - Backend still resolves branch from authenticated user mapping", () => { const backend = source("../base44/shared/postingCore.ts"); assert.match(backend, /user\.default_branch_id/); assert.match(backend, /branch_id: branch\.id/); });
+test("H - Inventory all remains a read-scope resolver", () => { const inventory = source("../src/pages/Stock.jsx"); assert.match(inventory, /readScopeBranchId/); assert.match(inventory, /Semua Cabang/); });
+test("I - Inventory can scope V3 Pusat by real read-scope branch id", () => { assert.equal(initialReadScopeBranchId({ isSuperAdmin: true, operationalBranchId: "V3_PUSAT", storedScope: "V3_PUSAT", mappings }), "V3_PUSAT"); });
+test("J - Stock Card all keeps existing multi-branch behavior", () => { const card = source("../src/pages/StockCard.jsx"); assert.match(card, /readScopeBranchId/); assert.match(card, /isAllBranches \? ""/); });
+test("K - Transfer source uses operational branch independent of read scope", () => { for (const file of ["../src/pages/Mutasi.jsx", "../src/components/MutasiFormModal.jsx"]) { const code = source(file); assert.match(code, /operationalBranchId/); assert.match(code, /row\.branch_id === operationalBranchId/); } });
+test("L - ordinary Patrang user gets Patrang for both concepts", () => { const operational = resolveOperationalBranchId({ default_branch_id: "PATRANG" }, mappings); assert.deepEqual([operational, initialReadScopeBranchId({ isSuperAdmin: false, operationalBranchId: operational, storedScope: "all", mappings })], ["PATRANG", "PATRANG"]); });
+test("M - transaction and draft flows cannot derive an empty branch from all scope", () => { for (const file of ["../src/pages/SalesPOSNew.jsx", "../src/pages/PurchasePOSNew.jsx", "../src/components/CashTransactionFormModal.jsx", "../src/components/TransactionFormModal.jsx", "../src/components/MutasiFormModal.jsx"]) { const code = source(file); assert.doesNotMatch(code, /isAllBranches\s*\?\s*["']{2}/); assert.doesNotMatch(code, /readScopeBranchId/); } assert.equal(isOperationalBranchId("all"), false); assert.equal(isOperationalBranchId("V3_PUSAT"), true); });
+test("N - activeBranchId compatibility alias is documented as read scope", () => { const context = source("../src/lib/BranchContext.jsx"); assert.match(context, /activeBranchId is READ SCOPE only/); assert.match(context, /activeBranchId: readScopeBranchId/); });

@@ -7,7 +7,7 @@ import { useBranchContext } from "@/lib/BranchContext";
 const inputCls = "w-full px-3 py-2 text-sm rounded-lg border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring";
 
 export default function TransactionFormModal({ open, onClose, onSubmit, type, editing = null }) {
-  const { activeBranchId, isSuperAdmin } = useBranchContext();
+  const { operationalBranchId } = useBranchContext();
   const isPurchase = type === "purchase";
   const [branches, setBranches] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
@@ -34,9 +34,9 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type, ed
   useEffect(() => {
     if (!open) return;
     base44.entities.Branch.list().then((r) => {
-      const available = isSuperAdmin ? (r || []) : (r || []).filter((b) => b.id === activeBranchId);
+      const available = (r || []).filter((b) => b.id === operationalBranchId);
       setBranches(available);
-      if (!isSuperAdmin && !editing) setBranchId(activeBranchId);
+      if (!editing) setBranchId(operationalBranchId);
     });
     base44.entities.Product.list().then((r) => setProducts(r || []));
     if (isPurchase) {
@@ -44,7 +44,7 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type, ed
     } else {
       base44.entities.Customer.list().then((r) => setCustomers(r || []));
     }
-  }, [open, isPurchase, activeBranchId, isSuperAdmin, editing]);
+  }, [open, isPurchase, operationalBranchId, editing]);
 
   useEffect(() => {
     if (!branchId) return;
@@ -173,7 +173,7 @@ export default function TransactionFormModal({ open, onClose, onSubmit, type, ed
             </div>
             <div>
               <label className="block text-sm font-medium mb-1.5">Cabang <span className="text-destructive">*</span></label>
-              <select value={branchId} onChange={(e) => setBranchId(e.target.value)} disabled={!isSuperAdmin} className={inputCls}>
+              <select value={branchId} disabled className={inputCls}>
                 <option value="">— Pilih —</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>

@@ -2,10 +2,12 @@ import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Building2, CheckCircle2, FileBarChart, PackageSearch, ReceiptText, Users } from "lucide-react";
 import { formatCurrency, formatNumber } from "@/lib/utils";
+import {
+  buildDashboardBranchRows, dashboardInventorySummary, dashboardTransferSummary,
+  jakartaBusinessDate,
+} from "@/lib/dashboardReadModelCore";
 
-const localDate = (value = null) => value instanceof Date
-  ? value.toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" })
-  : String(value || "").slice(0, 10);
+const localDate = (value = null) => value == null ? jakartaBusinessDate() : jakartaBusinessDate(value);
 const sum = (items, getter) => items.reduce((total, item) => total + (getter(item) || 0), 0);
 const outstanding = (item) => Math.max(0, (item.amount || 0) - (item.paid_amount || 0));
 const pct = (current, previous) => previous ? ((current - previous) / previous) * 100 : current ? 100 : 0;
@@ -45,7 +47,7 @@ function Pending({ label }) {
   return <div className="flex items-center justify-between rounded-lg border border-dashed border-emerald-200 bg-emerald-50/40 p-3 text-sm"><span>{label}</span><span className="text-xs text-emerald-700">Belum terhubung</span></div>;
 }
 
-export default function HeadOfficeDashboard({ data, loading, error }) {
+export default function HeadOfficeDashboard({ data, inventory, loading, error }) {
   const report = useMemo(() => {
     const today = localDate();
     const month = today.slice(0, 7);
@@ -62,7 +64,8 @@ export default function HeadOfficeDashboard({ data, loading, error }) {
     const productMap = Object.fromEntries(data.products.map((item) => [item.id, item]));
     const branchMap = Object.fromEntries(data.branches.map((item) => [item.id, item]));
     const accountMap = Object.fromEntries(data.accounts.map((item) => [item.id, item]));
-    const inventoryValue = (stock) => sum(stock, (item) => (item.quantity || 0) * (productMap[item.product_id]?.purchase_price || 0));
+    const inventorySummary = dashboardInventorySummary(inventory);
+    const controlRows = buildDashboardBranchRows({ branches: data.branches, inventory, sales: data.sales, receivables: data.receivables, transfers: data.stockTransfers, today });
     const saleMargin = (sale) => (sale.total || 0) - sum(sale.items || [], (item) => (item.qty || 0) * (productMap[item.product_id]?.purchase_price || 0));
     const branchRows = data.branches.map((branch) => {
       const current = currentSales.filter((item) => item.branch_id === branch.id);
@@ -70,7 +73,8 @@ export default function HeadOfficeDashboard({ data, loading, error }) {
       const revenue = sum(current, (item) => item.total);
       const cash = sum(current.filter((item) => item.payment_method !== "kredit"), (item) => item.total);
       const credit = sum(current.filter((item) => item.payment_method === "kredit"), (item) => item.total);
-      return { id: branch.id, code: branch.code, name: branch.name, revenue, growth: pct(revenue, sum(previous, (item) => item.total)), cash, credit, margin: sum(current, saleMargin), receivable: sum(openReceivables.filter((item) => item.branch_id === branch.id), outstanding) };
+      const control = controlRows.find((row) => row.id === branch.id) || {};
+      return { id: branch.id, code: branch.code, name: branch.name, revenue, growth: pct(revenue, sum(previous, (item) => item.total)), cash, credit, margin: sum(current, saleMargin), receivable: sum(openReceivables.filter((item) => item.branch_id === branch.id), outstanding), ...control };
     }).sort((a, b) => b.revenue - a.revenue).map((item, index) => ({ ...item, rank: index + 1 }));
     const aging = { current: 0, d30: 0, d60: 0, d90: 0 };
     openReceivables.forEach((item) => {
@@ -86,28 +90,29 @@ export default function HeadOfficeDashboard({ data, loading, error }) {
     const recent90 = new Date(); recent90.setDate(recent90.getDate() - 90);
     const sold30 = new Set(postedSales.filter((sale) => new Date(localDate(sale.date)) >= recent30).flatMap((sale) => (sale.items || []).map((item) => item.product_id)));
     const sold90 = new Set(postedSales.filter((sale) => new Date(localDate(sale.date)) >= recent90).flatMap((sale) => (sale.items || []).map((item) => item.product_id)));
-    const stockedProducts = new Set(data.stock.filter((item) => (item.quantity || 0) > 0).map((item) => item.product_id));
-    const stockByBranch = data.branches.map((branch) => ({ id: branch.id, name: branch.name, value: inventoryValue(data.stock.filter((item) => item.branch_id === branch.id)) })).sort((a, b) => b.value - a.value);
+    const stockedProducts = new Set(inventory.filter((item) => (item.quantity || 0) > 0).map((item) => item.product_id));
+    const stockByBranch = data.branches.map((branch) => ({ id: branch.id, name: branch.name, value: dashboardInventorySummary(inventory.filter((item) => item.branch_id === branch.id)).inventory_value })).sort((a, b) => b.value - a.value);
+    const transfer = dashboardTransferSummary(data.stockTransfers);
     const cashTransactions = data.cashTransactions;
     const accountTransactions = (type, direction) => cashTransactions.filter((item) => accountMap[item.account_id]?.account_type === type && item.type === direction);
     return {
       today, month, postedSales, currentSales, branchRows, aging, topCustomers, topReceivables, salespersonRows, stockByBranch,
       salesToday: sum(postedSales.filter((item) => localDate(item.date) === today), (item) => item.total),
       salesMonth: sum(currentSales, (item) => item.total), cashSales: sum(currentSales.filter((item) => item.payment_method !== "kredit"), (item) => item.total), creditSales: sum(currentSales.filter((item) => item.payment_method === "kredit"), (item) => item.total),
-      receivable: sum(openReceivables, outstanding), payable: sum(openPayables, outstanding), inventory: inventoryValue(data.stock), liquidity: sum(data.accounts, (item) => item.current_balance),
+      receivable: sum(openReceivables, outstanding), payable: sum(openPayables, outstanding), inventory: inventorySummary.inventory_value, liquidity: sum(data.accounts, (item) => item.current_balance),
       dueToday: sum(dueToday, outstanding), overdue: sum(overdue, outstanding), overdueCount: overdue.length,
-      lowStock: data.stock.filter((item) => (item.quantity || 0) <= (item.min_stock || 0)).length,
-      overstock: data.stock.filter((item) => (item.quantity || 0) > Math.max((item.min_stock || 0) * 3, 50)).length,
+      lowStock: inventorySummary.low_stock,
+      overstock: inventory.filter((item) => (item.quantity || 0) > Math.max((item.min_stock || 0) * 3, 50)).length,
       slowMoving: [...stockedProducts].filter((id) => !sold30.has(id) && sold90.has(id)).length,
       deadStock: [...stockedProducts].filter((id) => !sold90.has(id)).length,
-      transferDraft: data.stockTransfers.filter((item) => item.status === "draft").length,
+      transfer,
       cashBalance: sum(data.accounts.filter((item) => item.account_type === "kas"), (item) => item.current_balance), bankBalance: sum(data.accounts.filter((item) => item.account_type === "bank"), (item) => item.current_balance),
       cashIn: sum(accountTransactions("kas", "in"), (item) => item.amount), cashOut: sum(accountTransactions("kas", "out"), (item) => item.amount), bankIn: sum(accountTransactions("bank", "in"), (item) => item.amount), bankOut: sum(accountTransactions("bank", "out"), (item) => item.amount),
       activeCustomers: data.customers.filter((item) => item.is_active !== false).length, inactiveCustomers: data.customers.filter((item) => item.is_active === false).length, newCustomers: data.customers.filter((item) => localDate(item.created_date).startsWith(month)).length,
       crmCustomers: data.customers.filter((item) => item.sync_enabled).length,
       topReceivableBranch: branchRows.slice().sort((a, b) => b.receivable - a.receivable)[0], branchMap,
     };
-  }, [data]);
+  }, [data, inventory]);
 
   if (loading) return <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{Array.from({ length: 12 }).map((_, index) => <div key={index} className="h-28 animate-pulse rounded-xl bg-muted" />)}</div>;
 
@@ -118,7 +123,7 @@ export default function HeadOfficeDashboard({ data, loading, error }) {
 
       <Section number="1" title="Ringkasan Bisnis"><div className="grid grid-cols-2 gap-3 lg:grid-cols-4"><Tile label="Penjualan Hari Ini" value={formatCurrency(report.salesToday)} /><Tile label="Penjualan Bulan Ini" value={formatCurrency(report.salesMonth)} /><Tile label="Total Cash" value={formatCurrency(report.cashSales)} /><Tile label="Total Tempo" value={formatCurrency(report.creditSales)} /><Tile label="Total Piutang" value={formatCurrency(report.receivable)} /><Tile label="Hutang Supplier" value={formatCurrency(report.payable)} /><Tile label="Nilai Persediaan" value={formatCurrency(report.inventory)} /><Tile label="Total Kas + Bank" value={formatCurrency(report.liquidity)} /></div></Section>
 
-      <Section number="2" title="Performa Cabang"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-xs text-muted-foreground"><th className="p-2">Rank</th><th className="p-2">Cabang</th><th className="p-2 text-right">Penjualan</th><th className="p-2 text-right">Growth</th><th className="p-2 text-right">Cash / Tempo</th><th className="p-2 text-right">Margin</th><th className="p-2 text-right">Piutang</th></tr></thead><tbody>{report.branchRows.map((row) => <tr key={row.id} className="border-b last:border-0"><td className="p-2 font-bold">#{row.rank}</td><td className="p-2 font-medium">{row.code} · {row.name}</td><td className="p-2 text-right">{formatCurrency(row.revenue)}</td><td className={`p-2 text-right ${row.growth < 0 ? "text-red-600" : "text-emerald-600"}`}>{row.growth.toFixed(1)}%</td><td className="p-2 text-right">{formatCurrency(row.cash)} / {formatCurrency(row.credit)}</td><td className="p-2 text-right">{formatCurrency(row.margin)}</td><td className="p-2 text-right">{formatCurrency(row.receivable)}</td></tr>)}</tbody></table></div></Section>
+      <Section number="2" title="Performa Cabang"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left text-xs text-muted-foreground"><th className="p-2">Rank</th><th className="p-2">Cabang</th><th className="p-2 text-right">Sales Hari Ini</th><th className="p-2 text-right">Sales Bulan Ini</th><th className="p-2 text-right">Piutang</th><th className="p-2 text-right">Inventory</th><th className="p-2 text-right">Low Stock</th><th className="p-2 text-right">Transit</th></tr></thead><tbody>{report.branchRows.map((row) => <tr key={row.id} className="border-b last:border-0"><td className="p-2 font-bold">#{row.rank}</td><td className="p-2 font-medium">{row.code} · {row.name}</td><td className="p-2 text-right">{formatCurrency(row.sales_today)}</td><td className="p-2 text-right">{formatCurrency(row.sales_month)}</td><td className="p-2 text-right">{formatCurrency(row.receivable)}</td><td className="p-2 text-right">{formatCurrency(row.inventory_value)}</td><td className="p-2 text-right">{formatNumber(row.low_stock)}</td><td className="p-2 text-right">{formatNumber(row.transit_qty)}</td></tr>)}</tbody></table></div></Section>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <Section number="3" title="Piutang"><div className="grid grid-cols-2 gap-3"><Tile label="Piutang Berjalan" value={formatCurrency(report.receivable)} /><Tile label="Jatuh Tempo Hari Ini" value={formatCurrency(report.dueToday)} /><Tile label="Overdue" value={formatCurrency(report.overdue)} note={`${report.overdueCount} tagihan`} alert={report.overdueCount > 0} /><Tile label="Cabang Piutang Tertinggi" value={report.topReceivableBranch?.name || "—"} note={formatCurrency(report.topReceivableBranch?.receivable || 0)} /></div><div className="mt-4 grid grid-cols-4 gap-2"><Tile label="Belum JT" value={formatCurrency(report.aging.current)} /><Tile label="1–30 hari" value={formatCurrency(report.aging.d30)} /><Tile label="31–60 hari" value={formatCurrency(report.aging.d60)} /><Tile label=">60 hari" value={formatCurrency(report.aging.d90)} /></div><div className="mt-4"><div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Top Piutang Customer</div>{report.topReceivables.map((item) => <div key={item.id} className="flex justify-between border-b py-2 text-sm"><span>{item.name}</span><strong>{formatCurrency(item.value)}</strong></div>)}</div></Section>
@@ -126,7 +131,7 @@ export default function HeadOfficeDashboard({ data, loading, error }) {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Section number="5" title="Mutasi Cabang"><div className="grid grid-cols-2 gap-3"><Tile label="Dalam Perjalanan" value={formatNumber(report.transferDraft)} note="Draft / belum posted" /><Tile label="Belum Diterima" value={formatNumber(report.transferDraft)} note="Status penerimaan belum tersedia" /><Pending label="Mutasi Selisih" /><Pending label="Riwayat Mutasi Bermasalah" /></div></Section>
+        <Section number="5" title="Mutasi Cabang"><div className="grid grid-cols-2 gap-3"><Tile label="Dalam Perjalanan" value={formatNumber(report.transfer.transit_qty)} note={`${report.transfer.transit_count} mutasi approved`} /><Tile label="Belum Diterima" value={formatNumber(report.transfer.transit_count)} note="Status approved" /><Pending label="Mutasi Selisih" /><Pending label="Riwayat Mutasi Bermasalah" /></div></Section>
         <Section number="6" title="Kas & Bank"><div className="grid grid-cols-2 gap-3"><Tile label="Saldo Kas Semua Cabang" value={formatCurrency(report.cashBalance)} /><Tile label="Saldo Bank" value={formatCurrency(report.bankBalance)} /><Tile label="Kas Masuk / Keluar" value={`${formatCurrency(report.cashIn)} / ${formatCurrency(report.cashOut)}`} /><Tile label="Bank Masuk / Keluar" value={`${formatCurrency(report.bankIn)} / ${formatCurrency(report.bankOut)}`} /><Tile label="Posisi Likuiditas" value={formatCurrency(report.liquidity)} /></div></Section>
       </div>
 
@@ -137,7 +142,7 @@ export default function HeadOfficeDashboard({ data, loading, error }) {
         <Section number="9" title="Customer"><div className="grid grid-cols-2 gap-3"><Tile label="Customer Aktif" value={formatNumber(report.activeCustomers)} /><Tile label="Customer Tidak Aktif" value={formatNumber(report.inactiveCustomers)} /><Tile label="New Customer" value={formatNumber(report.newCustomers)} /><Tile label="Customer Overdue" value={formatNumber(report.overdueCount)} alert={report.overdueCount > 0} /><Tile label="Data CRM V3 Pro" value={formatNumber(report.crmCustomers)} note="Sync enabled" /></div><div className="mt-4"><div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Top Customer</div>{report.topCustomers.map((item) => <div key={item.id} className="flex justify-between border-b py-2 text-sm"><span>{item.name}</span><strong>{formatCurrency(item.value)}</strong></div>)}</div></Section>
       </div>
 
-      <Section number="10" title="Alert & Exception"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Tile label="Piutang Overdue" value={formatNumber(report.overdueCount)} alert={report.overdueCount > 0} /><Tile label="Stok Kritis" value={formatNumber(report.lowStock)} alert={report.lowStock > 0} /><Pending label="Selisih Rekonsiliasi" /><Pending label="Mutasi Terlambat" /><Pending label="Transaksi Void Besar" /><Pending label="Diskon Tidak Wajar" /><Pending label="Aktivitas User Tidak Normal" /></div></Section>
+      <Section number="10" title="Alert & Exception"><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"><Tile label="Piutang Overdue" value={formatNumber(report.overdueCount)} alert={report.overdueCount > 0} /><Tile label="Stok Kritis" value={formatNumber(report.lowStock)} alert={report.lowStock > 0} /><Tile label="Mutasi Dalam Perjalanan" value={formatNumber(report.transfer.transit_count)} note={`${report.transfer.transit_qty} unit`} alert={report.transfer.transit_count > 0} /><Pending label="Selisih Rekonsiliasi" /><Pending label="Transaksi Void Besar" /><Pending label="Diskon Tidak Wajar" /><Pending label="Aktivitas User Tidak Normal" /></div></Section>
 
       <Section number="11" title="Shortcut Pusat"><div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">{SHORTCUTS.map(({ label, path, icon: Icon }) => <Link key={path} to={path} className="group flex items-center justify-between rounded-xl border border-border p-3 text-sm font-medium hover:border-primary hover:bg-primary/5"><span className="flex items-center gap-2"><Icon className="h-4 w-4 text-primary" />{label}</span><ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary" /></Link>)}</div></Section>
     </div>

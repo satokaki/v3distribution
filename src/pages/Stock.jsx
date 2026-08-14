@@ -19,7 +19,8 @@ const normalizeType = (value = "") => {
 
 export default function Stock() {
   const { toast } = useToast();
-  const { activeBranchId, isSuperAdmin, accessibleBranches } = useBranchContext();
+  const { readScopeBranchId, isSuperAdmin, accessibleBranches } = useBranchContext();
+  const activeBranchId = readScopeBranchId;
   const [rows, setRows] = useState([]);
   const [branches, setBranches] = useState([]);
   const [selectedBranchId, setSelectedBranchId] = useState("");

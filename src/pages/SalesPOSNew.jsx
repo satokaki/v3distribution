@@ -20,7 +20,7 @@ const localDate = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia
 
 export default function SalesPOSNew() {
   const { toast } = useToast();
-  const { activeBranchId, activeBranch, isAllBranches } = useBranchContext();
+  const { operationalBranchId, operationalBranch } = useBranchContext();
   const barcodeRef = useRef(null);
   const [master, setMaster] = useState({ products: [], customers: [], salespersons: [], accounts: [], receivables: [] });
   const [stockByProduct, setStockByProduct] = useState({});
@@ -37,7 +37,8 @@ export default function SalesPOSNew() {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState([]);
   const [editingDraftId, setEditingDraftId] = useState("");
-  const branchId = isAllBranches ? "" : activeBranchId;
+  const branchId = operationalBranchId;
+  const activeBranch = operationalBranch; // presentation-only compatibility inside this component
 
   const loadDrafts = async () => {
     if (!branchId) return setDrafts([]);
@@ -120,7 +121,7 @@ export default function SalesPOSNew() {
   const reset = () => { setEditingDraftId(""); setTransactionType("cash"); setPaymentChannel("cash"); setCustomerId(""); setNote(""); setPaid(0); setItems([]); setStockByProduct({}); setQuery(""); barcodeRef.current?.focus(); };
 
   const payload = () => ({
-    date: localDate(), branch_id: branchId, branch_code: activeBranch?.branch_code || "",
+    date: localDate(), branch_id: branchId, branch_code: operationalBranch?.branch_code || "",
     salesperson_id: salespersonId, salesperson_name: salesperson?.name || "", customer_id: customerId, customer_name: customer?.name || "",
     transaction_type: transactionType, payment_method: transactionType === "tempo" ? "kredit" : "tunai", payment_channel: transactionType === "tempo" ? "tempo" : paymentChannel,
     account_id: transactionType === "cash" ? (account?.id || "") : "", account_name: transactionType === "cash" ? (account?.name || "") : "",
@@ -155,7 +156,7 @@ export default function SalesPOSNew() {
     catch (error) { toast({ title: "Posting gagal", description: error.message, variant: "destructive" }); } finally { setBusy(false); }
   };
 
-  const openDraft = async (draft) => { setEditingDraftId(draft.id); setTransactionType(draft.transaction_type || (draft.payment_method === "kredit" ? "tempo" : "cash")); setPaymentChannel(draft.payment_channel || "cash"); setSalespersonId(draft.salesperson_id || ""); setCustomerId(draft.customer_id || ""); setAccountId(draft.account_id || ""); setNote(draft.note || ""); setPaid(draft.amount_paid || 0); const draftItems = (draft.items || []).map((item) => ({ ...item, discount_percent: item.discount_percent || 0 })); setItems(draftItems); try { const balances = await Promise.all(draftItems.map(async (item) => [item.product_id, (await getBranchProductBalance(branchId, item.product_id)).quantity])); setStockByProduct(Object.fromEntries(balances)); } catch (error) { toast({ title: "Draft dibuka, stok gagal dimuat", description: error.message, variant: "destructive" }); } };
+  const openDraft = async (draft) => { if (draft.branch_id && draft.branch_id !== branchId) toast({ title: "Draft dibuat pada cabang berbeda", description: "Stok, rekening, sales, dan posting menggunakan cabang operasional saat ini." }); setEditingDraftId(draft.id); setTransactionType(draft.transaction_type || (draft.payment_method === "kredit" ? "tempo" : "cash")); setPaymentChannel(draft.payment_channel || "cash"); setSalespersonId(draft.salesperson_id || ""); setCustomerId(draft.customer_id || ""); setAccountId(draft.account_id || ""); setNote(draft.note || ""); setPaid(draft.amount_paid || 0); const draftItems = (draft.items || []).map((item) => ({ ...item, discount_percent: item.discount_percent || 0 })); setItems(draftItems); try { const balances = await Promise.all(draftItems.map(async (item) => [item.product_id, (await getBranchProductBalance(branchId, item.product_id)).quantity])); setStockByProduct(Object.fromEntries(balances)); } catch (error) { toast({ title: "Draft dibuka, stok gagal dimuat", description: error.message, variant: "destructive" }); } };
   const deleteDraft = async (draft) => { await base44.entities.Sale.delete(draft.id); await loadDrafts(); toast({ title: `Draft ${draft.code} dihapus` }); };
 
   useEffect(() => {

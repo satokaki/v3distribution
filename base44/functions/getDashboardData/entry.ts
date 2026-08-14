@@ -1,5 +1,17 @@
 import { createClientFromRequest } from 'npm:@base44/sdk';
 
+const PAGE_SIZE = 500;
+const MAX_PAGES = 200;
+async function listAll(entity, sort) {
+  const rows = [];
+  for (let page = 0; page < MAX_PAGES; page += 1) {
+    const batch = await entity.list(sort, PAGE_SIZE, page * PAGE_SIZE);
+    rows.push(...(batch || []));
+    if (!batch || batch.length < PAGE_SIZE) return rows;
+  }
+  throw new Error(`DASHBOARD_DATA_LIMIT: ${PAGE_SIZE * MAX_PAGES} records exceeded`);
+}
+
 export default async function(req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -11,19 +23,19 @@ export default async function(req) {
       branches, products, customers, suppliers, salespersons, accounts,
       stock, sales, purchases, receivables, payables, cashTransactions, stockTransfers,
     ] = await Promise.all([
-      base44.entities.Branch.list("-created_date", 500),
-      base44.entities.Product.list("-created_date", 500),
-      base44.entities.Customer.list("-created_date", 500),
-      base44.entities.Supplier.list("-created_date", 500),
-      base44.entities.Salesperson.list("-created_date", 500),
-      base44.entities.Account.list("-created_date", 500),
-      base44.entities.StockBalance.list("-created_date", 500),
-      base44.entities.Sale.list("-created_date", 500),
-      base44.entities.Purchase.list("-created_date", 500),
-      base44.entities.Receivable.list("-date", 500),
-      base44.entities.Payable.list("-date", 500),
-      base44.entities.CashTransaction.list("-date", 500),
-      base44.entities.StockTransfer.list("-date", 500),
+      listAll(base44.entities.Branch, "-created_date"),
+      listAll(base44.entities.Product, "-created_date"),
+      listAll(base44.entities.Customer, "-created_date"),
+      listAll(base44.entities.Supplier, "-created_date"),
+      listAll(base44.entities.Salesperson, "-created_date"),
+      listAll(base44.entities.Account, "-created_date"),
+      listAll(base44.entities.StockBalance, "-created_date"),
+      listAll(base44.entities.Sale, "-created_date"),
+      listAll(base44.entities.Purchase, "-created_date"),
+      listAll(base44.entities.Receivable, "-date"),
+      listAll(base44.entities.Payable, "-date"),
+      listAll(base44.entities.CashTransaction, "-date"),
+      listAll(base44.entities.StockTransfer, "-date"),
     ]);
 
     return Response.json({
