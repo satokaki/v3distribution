@@ -32,47 +32,50 @@ const menuGroups = [
   {
     label: null,
     items: [
-      { label: "Dashboard", path: "/", icon: LayoutDashboard },
+      { label: "Dashboard Cabang", path: "/", icon: LayoutDashboard, permission: "dashboard.view" },
     ],
   },
   {
     label: "Transaksi",
     items: [
-      { label: "Penjualan", path: "/penjualan", icon: ShoppingCart },
-      { label: "Pembelian", path: "/pembelian", icon: PackagePlus },
-      { label: "Mutasi Cabang", path: "/mutasi", icon: ArrowLeftRight },
-      { label: "Jual Beli Cabang", path: "/jual-beli-cabang", icon: Repeat2 },
+      { label: "Penjualan", path: "/penjualan", icon: ShoppingCart, permission: "sales.view" },
+      { label: "Pricing Engine", path: "/pricing", icon: Percent, permission: "pricing.view" },
+      { label: "Pembelian", path: "/pembelian", icon: PackagePlus, permission: "purchase.view" },
+      { label: "Mutasi Antar Cabang", path: "/mutasi", icon: ArrowLeftRight, permission: "transfer.view" },
+      { label: "Jual Beli Cabang", path: "/jual-beli-cabang", icon: Repeat2, permission: "transfer.view" },
     ],
   },
   {
     label: "Inventori & Keuangan",
     items: [
-      { label: "Stok", path: "/stok", icon: Boxes },
-      { label: "Kartu Stok", path: "/kartu-stok", icon: ClipboardList },
-      { label: "Hutang", path: "/hutang", icon: CreditCard },
-      { label: "Piutang", path: "/piutang", icon: Wallet },
-      { label: "Buku Kas", path: "/buku-kas", icon: Wallet },
-      { label: "Komisi", path: "/komisi", icon: Percent },
+      { label: "Inventory", path: "/stok", icon: Boxes, permission: "inventory.view" },
+      { label: "Kartu Stok", path: "/kartu-stok", icon: ClipboardList, permission: "inventory.view" },
+      { label: "Hutang Supplier", path: "/hutang", icon: CreditCard, permission: "payable.view" },
+      { label: "Piutang", path: "/piutang", icon: Wallet, permission: "receivable.view" },
+      { label: "Kas", path: "/buku-kas", icon: Wallet, permission: "cash.view" },
+      { label: "Bank", path: "/bank", icon: CreditCard, permission: "bank.view" },
+      { label: "Rekonsiliasi", path: "/rekonsiliasi", icon: Repeat2, permission: "reconciliation.view" },
+      { label: "Komisi", path: "/komisi", icon: Percent, permission: "sales.view" },
     ],
   },
   {
     label: "Data & Sistem",
     items: [
-      { label: "Laporan", path: "/laporan", icon: FileBarChart },
+      { label: "Laporan", path: "/laporan", icon: FileBarChart, permission: "report.view" },
+      { label: "Integrasi CRM V3 Pro", path: "/integrasi-crm", icon: Repeat2, permission: "crm.view", adminOnly: true },
       {
         label: "Master Data",
         path: "/master/cabang",
         icon: Database,
-        adminOnly: true,
         children: [
-          { label: "Cabang", path: "/master/cabang" },
-          { label: "Gudang", path: "/master/gudang" },
-          { label: "Kategori", path: "/master/kategori" },
-          { label: "Barang", path: "/master/barang" },
-          { label: "Pelanggan", path: "/master/pelanggan" },
-          { label: "Supplier", path: "/master/supplier" },
-          { label: "Sales", path: "/master/sales" },
-          { label: "Rekening", path: "/master/rekening" },
+          { label: "Cabang & Organisasi", path: "/master/cabang", permission: "organization.view" },
+          { label: "Gudang", path: "/master/gudang", permission: "inventory.view" },
+          { label: "Kategori Produk", path: "/master/kategori", permission: "product.view" },
+          { label: "Master Produk", path: "/master/barang", permission: "product.view" },
+          { label: "Customer", path: "/master/pelanggan", permission: "customer.view" },
+          { label: "Supplier", path: "/master/supplier", permission: "purchase.view" },
+          { label: "Sales", path: "/master/sales", permission: "sales.view" },
+          { label: "Rekening", path: "/master/rekening", permission: "bank.view" },
         ],
       },
       {
@@ -81,7 +84,8 @@ const menuGroups = [
         icon: Settings,
         adminOnly: true,
         children: [
-          { label: "User & Hak Akses", path: "/pengaturan/user" },
+          { label: "User & Hak Akses", path: "/pengaturan/user", permission: "system.manage" },
+          { label: "System", path: "/system", permission: "system.manage" },
         ],
       },
     ],
@@ -149,7 +153,13 @@ function NavItem({ item, onNavigate }) {
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isSuperAdmin } = useBranchContext();
+  const { user, isSuperAdmin, hasPermission } = useBranchContext();
+
+  const canSee = (item) => {
+    if (isSuperAdmin) return true;
+    if (item.adminOnly) return false;
+    return !item.permission || hasPermission(item.permission);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -179,7 +189,10 @@ export default function Layout() {
 
         <nav className="px-3 py-4 space-y-5 overflow-y-auto h-[calc(100%-4rem)]">
           {menuGroups.map((group, gi) => {
-            const visible = group.items.filter((item) => !item.adminOnly || isSuperAdmin);
+            const visible = group.items
+              .filter(canSee)
+              .map((item) => item.children ? { ...item, children: item.children.filter(canSee) } : item)
+              .filter((item) => !item.children || item.children.length > 0);
             if (visible.length === 0) return null;
             return (
             <div key={gi} className="space-y-1">

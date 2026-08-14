@@ -3,7 +3,7 @@ import { useBranchContext } from "@/lib/BranchContext";
 import { ChevronDown, Building2, Check } from "lucide-react";
 
 export default function BranchSelector() {
-  const { isSuperAdmin, accessibleBranches, activeBranchId, setActiveBranch, isAllBranches } = useBranchContext();
+  const { isSuperAdmin, canSwitchBranch, accessibleBranches, activeBranchId, setActiveBranch, isAllBranches } = useBranchContext();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -17,7 +17,7 @@ export default function BranchSelector() {
 
   const activeName = accessibleBranches.find((b) => b.branch_id === activeBranchId)?.branch_name;
   const currentLabel = isAllBranches ? "Semua Cabang" : activeName || (accessibleBranches[0]?.branch_name || "—");
-  const showSelector = isSuperAdmin || accessibleBranches.length > 1;
+  const showSelector = canSwitchBranch;
 
   if (!showSelector) {
     return (

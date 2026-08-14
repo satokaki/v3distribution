@@ -5,6 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import MutasiFormModal from "@/components/MutasiFormModal";
 import { writeAuditLog } from "@/lib/audit";
+import { useBranchContext } from "@/lib/BranchContext";
 
 function StatusBadge({ value }) {
   const map = { draft: "bg-amber-100 text-amber-700", posted: "bg-emerald-100 text-emerald-700" };
@@ -12,6 +13,7 @@ function StatusBadge({ value }) {
 }
 
 export default function Mutasi() {
+  const { activeBranchId, isAllBranches } = useBranchContext();
   const { toast } = useToast();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,7 @@ export default function Mutasi() {
     setLoading(true);
     try {
       const items = await base44.entities.StockTransfer.list("-created_date", 500);
-      setData(items || []);
+      setData(isAllBranches ? (items || []) : (items || []).filter((item) => item.from_branch_id === activeBranchId || item.to_branch_id === activeBranchId));
     } catch {
       toast({ title: "Gagal memuat data", variant: "destructive" });
     } finally {
@@ -29,7 +31,7 @@ export default function Mutasi() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [activeBranchId, isAllBranches]);
 
   const handleDelete = async (row) => {
     if (row.status === "posted") {
