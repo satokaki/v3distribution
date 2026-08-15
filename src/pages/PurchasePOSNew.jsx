@@ -20,6 +20,7 @@ export default function PurchasePOSNew() {
   const branchId = operationalBranchId;
   const activeBranch = operationalBranch; // presentation-only compatibility inside this component
   const [master, setMaster] = useState({ suppliers: [], products: [], accounts: [] });
+  const [branchRecord, setBranchRecord] = useState(null);
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -41,26 +42,73 @@ export default function PurchasePOSNew() {
   };
 
   useEffect(() => {
-    if (!branchId) { setLoading(false); return; }
+    if (!branchId) {
+      setBranchRecord(null);
+      setMaster({ suppliers: [], products: [], accounts: [] });
+      setDrafts([]);
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
+
     (async () => {
       setLoading(true);
+
       try {
+        const branches = await base44.entities.Branch.filter({ id: branchId }, "created_date", 10);
+        const branch = (branches || [])[0] || null;
+
+        if (cancelled) return;
+
+        setBranchRecord(branch);
+
+        if (!branch || branch.is_active === false || branch.branch_type !== "pusat") {
+          setMaster({ suppliers: [], products: [], accounts: [] });
+          setDrafts([]);
+          setAccountId("");
+          return;
+        }
+
         const [suppliers, products, accounts] = await Promise.all([
-          base44.entities.Supplier.list("name", 500), base44.entities.Product.list("name", 500),
+          base44.entities.Supplier.list("name", 500),
+          base44.entities.Product.list("name", 500),
           base44.entities.Account.filter({ branch_id: branchId, is_active: true }, "name", 100),
         ]);
+
         if (!cancelled) {
-          const next = { suppliers: (suppliers || []).filter((x) => x.is_active !== false), products: (products || []).filter((x) => x.is_active !== false), accounts: accounts || [] };
-          setMaster(next); setAccountId(next.accounts.find((x) => x.account_type === "kas")?.id || next.accounts[0]?.id || ""); await loadDrafts();
+          const next = {
+            suppliers: (suppliers || []).filter((x) => x.is_active !== false),
+            products: (products || []).filter((x) => x.is_active !== false),
+            accounts: accounts || [],
+          };
+
+          setMaster(next);
+          setAccountId(
+            next.accounts.find((x) => x.account_type === "kas")?.id ||
+            next.accounts[0]?.id ||
+            ""
+          );
+          await loadDrafts();
         }
-      } catch (error) { toast({ title: "Gagal memuat terminal pembelian", description: error.message, variant: "destructive" }); }
-      finally { if (!cancelled) setLoading(false); }
+      } catch (error) {
+        toast({
+          title: "Gagal memuat terminal pembelian",
+          description: error.message,
+          variant: "destructive",
+        });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     })();
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, [branchId, toast]);
 
   const supplier = master.suppliers.find((x) => x.id === supplierId);
+  const isHeadOffice = branchRecord?.branch_type === "pusat" && branchRecord?.is_active !== false;
   const needsAccount = method === "tunai" && channel !== "cash";
   useEffect(() => { if (method === "kredit") setDueDate(addDays(date, supplier?.payment_terms || 14)); }, [date, supplierId, method]);
 
@@ -73,16 +121,53 @@ export default function PurchasePOSNew() {
   const addProduct = (product) => { setItems((rows) => { const found = rows.find((x) => x.product_id === product.id); return found ? rows.map((x) => x.product_id === product.id ? { ...x, qty: x.qty + 1 } : x) : [...rows, { product_id: product.id, product_name: product.name, sku: product.sku, qty: 1, price: Number(product.purchase_price || 0), discount_percent: 0, price_source: "last_purchase_price" }]; }); setQuery(""); searchRef.current?.focus(); };
   const updateItem = (id, patch) => setItems((rows) => rows.map((x) => x.product_id === id ? { ...x, ...patch, qty: Math.max(1, Number(patch.qty ?? x.qty)), price: Math.max(0, Number(patch.price ?? x.price)), discount_percent: Math.min(100, Math.max(0, Number(patch.discount_percent ?? x.discount_percent))) } : x));
   const reset = () => { setSupplierId(""); setMethod("kredit"); setChannel("cash"); setDate(localDate()); setDueDate(""); setNote(""); setItems([]); setEditingDraftId(""); setQuery(""); searchRef.current?.focus(); };
-  const payload = () => ({ date, supplier_id: supplierId, supplier_name: supplier?.name || "", branch_id: branchId, branch_code: activeBranch?.branch_code || "", account_id: method === "tunai" ? accountId : "", account_name: method === "tunai" ? (master.accounts.find((x) => x.id === accountId)?.name || "") : "", payment_method: method, payment_channel: method === "kredit" ? "kredit" : channel, due_date: method === "kredit" ? dueDate : "", items: items.map((x) => ({ ...x, discount_amount: x.qty * x.price * x.discount_percent / 100, subtotal: x.qty * x.price * (1 - x.discount_percent / 100) })), subtotal: totals.subtotal, discount_total: totals.discount, total_qty: totals.qty, total: totals.total, note });
-  const validate = () => { if (!branchId) throw new Error("Head Office harus memilih satu cabang."); if (!supplier) throw new Error("Pilih supplier."); if (!items.length) throw new Error("Tambahkan minimal satu produk."); if (method === "tunai" && !accountId) throw new Error("Cabang belum mempunyai rekening pembayaran aktif."); if (method === "kredit" && !dueDate) throw new Error("Isi tanggal jatuh tempo."); };
+  const payload = () => ({ date, supplier_id: supplierId, supplier_name: supplier?.name || "", branch_id: branchRecord?.id || "", branch_code: branchRecord?.code || "", account_id: method === "tunai" ? accountId : "", account_name: method === "tunai" ? (master.accounts.find((x) => x.id === accountId)?.name || "") : "", payment_method: method, payment_channel: method === "kredit" ? "kredit" : channel, due_date: method === "kredit" ? dueDate : "", items: items.map((x) => ({ ...x, discount_amount: x.qty * x.price * x.discount_percent / 100, subtotal: x.qty * x.price * (1 - x.discount_percent / 100) })), subtotal: totals.subtotal, discount_total: totals.discount, total_qty: totals.qty, total: totals.total, note });
+  const validate = () => { if (!branchId) throw new Error("Pilih cabang transaksi."); if (!isHeadOffice) throw new Error("PURCHASE_HEAD_OFFICE_ONLY: Pembelian supplier hanya dapat dilakukan dari Pusat / Head Office."); if (!supplier) throw new Error("Pilih supplier."); if (!items.length) throw new Error("Tambahkan minimal satu produk."); if (method === "tunai" && !accountId) throw new Error("Cabang belum mempunyai rekening pembayaran aktif."); if (method === "kredit" && !dueDate) throw new Error("Isi tanggal jatuh tempo."); };
   const saveDraft = async () => { try { validate(); setBusy(true); let code; if (editingDraftId) { code = drafts.find((x) => x.id === editingDraftId)?.code || "Draft"; await base44.entities.Purchase.update(editingDraftId, { ...payload(), status: "draft" }); } else { code = await generateDailyCode("Purchase", "DRF-PBL", date); await base44.entities.Purchase.create({ ...payload(), code, status: "draft" }); } await writeAuditLog({ action: editingDraftId ? "update_purchase_draft" : "create_purchase_draft", module: "pembelian", description: `Draft ${code}`, branchId }); toast({ title: "Draft pembelian tersimpan", description: code }); reset(); await loadDrafts(); } catch (error) { toast({ title: "Draft gagal disimpan", description: error.message, variant: "destructive" }); } finally { setBusy(false); } };
   const post = async () => { try { validate(); setBusy(true); const created = await postPurchase(payload()); if (editingDraftId) await base44.entities.Purchase.delete(editingDraftId); toast({ title: "Pembelian berhasil diposting", description: created.code }); reset(); await loadDrafts(); } catch (error) { toast({ title: "Posting gagal", description: error.message, variant: "destructive" }); } finally { setBusy(false); } };
   const openDraft = (draft) => { if (draft.branch_id && draft.branch_id !== branchId) toast({ title: "Draft dibuat pada cabang berbeda", description: "Rekening dan posting menggunakan cabang operasional saat ini." }); setEditingDraftId(draft.id); setSupplierId(draft.supplier_id || ""); setAccountId(draft.account_id || ""); setDate(draft.date || localDate()); setDueDate(draft.due_date || ""); setMethod(draft.payment_method || "kredit"); setChannel(draft.payment_channel || "cash"); setNote(draft.note || ""); setItems((draft.items || []).map((x) => ({ ...x, discount_percent: x.discount_percent || 0 }))); };
   const deleteDraft = async (draft) => { await base44.entities.Purchase.delete(draft.id); await loadDrafts(); toast({ title: `Draft ${draft.code} dihapus` }); };
 
   if (loading) return <div className="py-20 text-center text-sm text-muted-foreground">Menyiapkan terminal pembelian...</div>;
+
+  if (!isHeadOffice) {
+    return (
+      <div className="space-y-4">
+        <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600">
+              <ShoppingCart />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">PEMBELIAN BARU</h1>
+              <p className="text-sm text-muted-foreground">
+                {branchRecord?.name || activeBranch?.branch_name || "Belum memilih cabang"}
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/laporan/pembelian"
+            className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-accent"
+          >
+            <ReceiptText className="h-4 w-4" />
+            Laporan Pembelian
+          </Link>
+        </header>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6">
+          <h2 className="text-lg font-bold text-amber-900">
+            Pembelian supplier hanya dapat dilakukan dari Pusat / Head Office.
+          </h2>
+          <p className="mt-2 text-sm text-amber-800">
+            Cabang retail memperoleh stok melalui Mutasi. Pilih cabang bertipe Pusat pada selector cabang kanan atas untuk membuat pembelian.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return <div className="space-y-4 pb-28 lg:pb-0">
-    <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div className="flex items-center gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600"><ShoppingCart /></div><div><h1 className="text-2xl font-bold">PEMBELIAN BARU</h1><p className="text-sm text-muted-foreground">{activeBranch?.branch_name || "Pilih satu cabang"}</p></div></div><div className="flex flex-wrap gap-2"><Link to="/laporan/pembelian" className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-accent"><ReceiptText className="h-4 w-4" />Laporan Pembelian</Link><button onClick={saveDraft} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium"><FileText className="h-4 w-4" />Draft</button><button onClick={reset} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium"><RefreshCcw className="h-4 w-4" />Reset</button></div></header>
+    <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div className="flex items-center gap-3"><div className="rounded-xl bg-emerald-50 p-2.5 text-emerald-600"><ShoppingCart /></div><div><h1 className="text-2xl font-bold">PEMBELIAN BARU</h1><p className="text-sm text-muted-foreground">{branchRecord?.name || activeBranch?.branch_name || "Pilih satu cabang"}</p></div></div><div className="flex flex-wrap gap-2"><Link to="/laporan/pembelian" className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-accent"><ReceiptText className="h-4 w-4" />Laporan Pembelian</Link><button onClick={saveDraft} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium"><FileText className="h-4 w-4" />Draft</button><button onClick={reset} className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium"><RefreshCcw className="h-4 w-4" />Reset</button></div></header>
     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]"><main className="overflow-hidden rounded-2xl border bg-card shadow-sm"><div className="grid gap-4 border-b p-5 md:grid-cols-3">
       <label className="space-y-1.5 md:col-span-2"><span className="text-sm font-medium">Supplier</span><select value={supplierId} onChange={(e) => setSupplierId(e.target.value)} className={fieldClass}><option value="">Cari nama / kode / nomor HP...</option>{master.suppliers.map((x) => <option key={x.id} value={x.id}>{x.code} · {x.name} · {x.phone || "-"}</option>)}</select>{supplier && <div className="rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800"><strong>{supplier.name}</strong> · Tempo {supplier.payment_terms || 0} hari · Hutang {formatCurrency(supplier.debt_balance || 0)} · Limit {formatCurrency(supplier.debt_limit || 0)}</div>}</label>
       <label className="space-y-1.5"><span className="text-sm font-medium">Tanggal</span><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} /></label>
