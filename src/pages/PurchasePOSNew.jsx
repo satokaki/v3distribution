@@ -15,7 +15,7 @@ const addDays = (date, days) => { const value = new Date(`${date}T00:00:00`); va
 
 export default function PurchasePOSNew() {
   const { toast } = useToast();
-  const { operationalBranchId, operationalBranch } = useBranchContext();
+  const { operationalBranchId, operationalBranch, isAllBranches, readScopeBranch } = useBranchContext();
   const searchRef = useRef(null);
   const branchId = operationalBranchId;
   const activeBranch = operationalBranch; // presentation-only compatibility inside this component
@@ -33,6 +33,7 @@ export default function PurchasePOSNew() {
   const [note, setNote] = useState("");
   const [items, setItems] = useState([]);
   const [editingDraftId, setEditingDraftId] = useState("");
+  const [purchaseContextAllowed, setPurchaseContextAllowed] = useState(false);
 
   const loadDrafts = async () => {
     if (!branchId) return setDrafts([]);
@@ -46,13 +47,14 @@ export default function PurchasePOSNew() {
     (async () => {
       setLoading(true);
       try {
-        const [suppliers, products, accounts] = await Promise.all([
+        const [suppliers, products, accounts, branch] = await Promise.all([
           base44.entities.Supplier.list("name", 500), base44.entities.Product.list("name", 500),
           base44.entities.Account.filter({ branch_id: branchId, is_active: true }, "name", 100),
+          base44.entities.Branch.get(branchId),
         ]);
         if (!cancelled) {
           const next = { suppliers: (suppliers || []).filter((x) => x.is_active !== false), products: (products || []).filter((x) => x.is_active !== false), accounts: accounts || [] };
-          setMaster(next); setAccountId(next.accounts.find((x) => x.account_type === "kas")?.id || next.accounts[0]?.id || ""); await loadDrafts();
+          setMaster(next); setAccountId(next.accounts.find((x) => x.account_type === "kas")?.id || next.accounts[0]?.id || ""); setPurchaseContextAllowed(branch?.branch_type === "pusat"); await loadDrafts();
         }
       } catch (error) { toast({ title: "Gagal memuat terminal pembelian", description: error.message, variant: "destructive" }); }
       finally { if (!cancelled) setLoading(false); }
