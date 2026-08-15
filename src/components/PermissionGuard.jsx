@@ -19,15 +19,49 @@ function AccessMessage({ icon: Icon, title, message }) {
 
 export default function PermissionGuard({ permission, children }) {
   const location = useLocation();
-  const { loading, isSuperAdmin, hasBranchAssignment, hasPermission } = useBranchContext();
+  const {
+    loading,
+    isSuperAdmin,
+    hasBranchAssignment,
+    hasPermission,
+    hasMenuAccessForPath,
+  } = useBranchContext();
 
-  if (loading) return <div className="py-16 text-center text-sm text-muted-foreground">Memuat akses user...</div>;
-  if (!hasBranchAssignment && !isSuperAdmin) {
-    return <AccessMessage icon={Building2} title="Cabang belum ditentukan" message="Hubungi administrator untuk memetakan akun ini ke satu cabang aktif." />;
+  if (loading) {
+    return <div className="py-16 text-center text-sm text-muted-foreground">Memuat akses user...</div>;
   }
+
+  if (!hasBranchAssignment && !isSuperAdmin) {
+    return (
+      <AccessMessage
+        icon={Building2}
+        title="Cabang belum ditentukan"
+        message="Hubungi administrator untuk memetakan akun ini ke satu cabang aktif."
+      />
+    );
+  }
+
   if (!isSuperAdmin && permission && !hasPermission(permission)) {
     if (location.pathname !== "/") return <Navigate to="/" replace />;
-    return <AccessMessage icon={ShieldX} title="Akses tidak tersedia" message="Role Anda tidak memiliki izin untuk membuka modul ini." />;
+    return (
+      <AccessMessage
+        icon={ShieldX}
+        title="Akses tidak tersedia"
+        message="Role Anda tidak memiliki izin untuk membuka modul ini."
+      />
+    );
   }
+
+  if (!isSuperAdmin && !hasMenuAccessForPath(location.pathname)) {
+    if (location.pathname !== "/") return <Navigate to="/" replace />;
+    return (
+      <AccessMessage
+        icon={ShieldX}
+        title="Menu tidak diizinkan"
+        message="Akun Anda tidak diberi akses ke menu ini pada cabang aktif."
+      />
+    );
+  }
+
   return children;
 }
