@@ -9,6 +9,7 @@ import TransactionActionMenu from "@/components/TransactionActionMenu";
 import TransactionFilters from "@/components/TransactionFilters";
 import { printTransaction } from "@/components/PrintTransaction";
 import { postPurchase } from "@/lib/posting";
+import { deletePurchaseDraft, savePurchaseDraft } from "@/lib/purchaseDraft";
 import { writeAuditLog } from "@/lib/audit";
 import { generateDailyCode } from "@/lib/transactionCode";
 import { formatCurrency } from "@/lib/utils";
@@ -78,18 +79,18 @@ export default function Pembelian() {
       if (action === "post") {
         await postPurchase(payload);
         if (editingId) {
-          await base44.entities.Purchase.delete(editingId);
+          await deletePurchaseDraft(editingId);
         }
         await writeAuditLog({ action: "post_purchase", module: "pembelian", description: `Posting pembelian dari draft`, branchId: payload.branch_id });
         toast({ type: "success", title: "Pembelian diposting", description: "Stok, kas/hutang & harga beli diperbarui" });
       } else {
         if (editingId) {
-          await base44.entities.Purchase.update(editingId, { ...payload, status: "draft" });
+          await savePurchaseDraft({ ...payload, purchase_id: editingId });
           await writeAuditLog({ action: "update_purchase_draft", module: "pembelian", description: `Edit draft pembelian`, branchId: payload.branch_id });
           toast({ type: "success", title: "Draft pembelian diperbarui" });
         } else {
           const code = await generateDailyCode("Purchase", "PMB", payload.date);
-          await base44.entities.Purchase.create({ ...payload, code, status: "draft" });
+          await savePurchaseDraft({ ...payload, code });
           await writeAuditLog({ action: "create_purchase_draft", module: "pembelian", description: `Draft pembelian ${code}`, branchId: payload.branch_id });
           toast({ type: "success", title: "Draft pembelian disimpan" });
         }
@@ -107,7 +108,7 @@ export default function Pembelian() {
     setBusyId(row.id);
     try {
       await postPurchase(row);
-      await base44.entities.Purchase.delete(row.id);
+      await deletePurchaseDraft(row.id);
       await writeAuditLog({ action: "post_purchase", module: "pembelian", description: `Posting draft ${row.code}`, branchId: row.branch_id });
       toast({ type: "success", title: "Pembelian diposting", description: `${row.code} → posted` });
       await load();
@@ -127,7 +128,7 @@ export default function Pembelian() {
     }
     if (!confirm(`Hapus draft ${row.code}?`)) return;
     try {
-      await base44.entities.Purchase.delete(row.id);
+      await deletePurchaseDraft(row.id);
       await writeAuditLog({ action: "delete_purchase_draft", module: "pembelian", description: `Hapus draft ${row.code}`, branchId: row.branch_id });
       toast({ type: "success", title: "Draft dihapus" });
       await load();

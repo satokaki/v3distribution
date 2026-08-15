@@ -7,12 +7,13 @@ const schema = JSON.parse(await readFile(new URL("../base44/entities/Purchase.js
 
 test("A - Pembelian Baru has no warehouse dependency or branch selector", () => {
   assert.doesNotMatch(page, /warehouse|gudang/i);
-  assert.doesNotMatch(page, /Pilih Cabang|Semua Cabang/i);
+  assert.doesNotMatch(page, /<BranchSelector|branch_id[^\n]*<select|Semua Cabang/i);
 });
 
 test("F - purchase draft persists directly without backend posting", () => {
   const draftBlock = page.slice(page.indexOf("const saveDraft"), page.indexOf("const post ="));
-  assert.match(draftBlock, /entities\.Purchase\.(create|update)/);
+  assert.match(draftBlock, /savePurchaseDraft\(/);
+  assert.doesNotMatch(draftBlock, /entities\.Purchase\.(create|update)/);
   assert.doesNotMatch(draftBlock, /postPurchase\(/);
 });
 
@@ -27,4 +28,10 @@ test("Pembelian Baru keeps dedicated form and backend adapter", () => {
   assert.match(page, /PEMBELIAN BARU/);
   assert.match(page, /postPurchase\(payload\(\)\)/);
   assert.match(page, /Laporan Pembelian/);
+});
+
+test("frontend blocks supplier purchase when operational branch is retail", () => {
+  assert.match(page, /branch_type === "pusat"/);
+  assert.match(page, /Pembelian supplier hanya dapat dilakukan dari Pusat/);
+  assert.match(page, /Pilih Cabang Pusat di Branch Selector/);
 });

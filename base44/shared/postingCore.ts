@@ -32,6 +32,19 @@ export async function resolvePostingBranch(user: any, db: any) {
   return branch;
 }
 
+export async function resolvePurchaseBranch(user: any, payload: any, db: any) {
+  if (!user) throw new PostingError("UNAUTHENTICATED", "Authentication required", 401);
+  const branchId = String(payload?.branch_id || "").trim();
+  if (!branchId || branchId === "all") throw new PostingError("PURCHASE_HEAD_OFFICE_ONLY", "Pembelian supplier hanya dapat dilakukan dari Pusat", 403);
+  const branch = await entityOne(db.Branch, { id: branchId });
+  if (!branch || branch.is_active === false || branch.branch_type !== "pusat") throw new PostingError("PURCHASE_HEAD_OFFICE_ONLY", "Pembelian supplier hanya dapat dilakukan dari Pusat", 403);
+  if (user.role !== "admin" && user.app_role !== "super_admin") {
+    const mappings = await db.UserBranch.filter({ user_id: user.id, status: "active" }, "-is_default", 100);
+    if (!mappings.some((row: any) => row.branch_id === branch.id)) throw new PostingError("PURCHASE_HEAD_OFFICE_ONLY", "User tidak memiliki akses pembelian pada cabang Pusat", 403);
+  }
+  return branch;
+}
+
 async function resolvedStock(db: any, branchId: string, productId: string) {
   const rows = await db.StockBalance.filter({ branch_id: branchId, product_id: productId }, "created_date", 500);
   const branchRows = rows.filter((row: any) => row.balance_scope === "branch");
@@ -104,7 +117,7 @@ export async function postTransaction({ kind, payload, user, db }: { kind: "sale
     const duplicate = await entityOne(entity, { posting_request_id: requestId, status: "posted" });
     if (duplicate) return { transaction: duplicate, idempotent: true };
     if (payload.status === "posted") throw new PostingError("ALREADY_POSTED", "Transaksi posted tidak dapat diposting ulang", 409);
-    const branch = await resolvePostingBranch(user, db);
+    const branch = kind === "purchase" ? await resolvePurchaseBranch(user, payload, db) : await resolvePostingBranch(user, db);
     const items = await validateItems(db, payload.items, kind);
     const payment = payload.payment_method || "tunai";
     if (!['tunai', 'kredit'].includes(payment)) throw new PostingError("INVALID_PAYMENT", "Metode pembayaran tidak valid");
