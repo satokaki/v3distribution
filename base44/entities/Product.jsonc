@@ -38,14 +38,39 @@
       "type": "string",
       "title": "Jenis Barang"
     },
-    "unit": {
+    "base_unit": {
       "type": "string",
-      "title": "Satuan",
+      "title": "Satuan Dasar Stok",
+      "enum": [
+        "pcs"
+      ],
       "default": "pcs"
     },
-    "content_per_carton": {
+    "pack_size": {
       "type": "number",
-      "title": "Isi per Karton"
+      "title": "Isi PCS per PACK",
+      "minimum": 1,
+      "default": 1
+    },
+    "allow_purchase_pcs": {
+      "type": "boolean",
+      "title": "Boleh Dibeli per PCS",
+      "default": true
+    },
+    "allow_purchase_pack": {
+      "type": "boolean",
+      "title": "Boleh Dibeli per PACK",
+      "default": false
+    },
+    "allow_sale_pcs": {
+      "type": "boolean",
+      "title": "Boleh Dijual per PCS",
+      "default": true
+    },
+    "allow_sale_pack": {
+      "type": "boolean",
+      "title": "Boleh Dijual per PACK",
+      "default": false
     },
     "nicotine_level": {
       "type": "string",
@@ -71,6 +96,10 @@
       "type": "number",
       "title": "Harga Antar Cabang"
     },
+    "vvip_price": {
+      "type": "number",
+      "title": "Harga VVIP"
+    },
     "min_stock": {
       "type": "number",
       "title": "Minimum Stok"
@@ -92,7 +121,8 @@
   },
   "required": [
     "sku",
-    "name"
+    "name",
+    "base_unit"
   ],
   "rls": {
     "read": {
