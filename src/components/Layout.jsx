@@ -8,25 +8,11 @@ const ROLE_LABEL = {
   super_admin: "Super Admin", kepala_cabang: "Kepala Cabang", admin_cabang: "Admin Cabang",
   kasir: "Kasir", gudang: "Gudang", finance: "Finance", admin: "Admin", user: "User",
 };
+
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  PackagePlus,
-  ArrowLeftRight,
-  Repeat2,
-  Boxes,
-  ClipboardList,
-  CreditCard,
-  Wallet,
-  Percent,
-  FileBarChart,
-  Database,
-  DatabaseBackup,
-  Settings,
-  Menu,
-  X,
-  Store,
-  LogOut,
+  LayoutDashboard, ShoppingCart, PackagePlus, ArrowLeftRight, Repeat2, Boxes,
+  ClipboardList, CreditCard, Wallet, Percent, FileBarChart, Database,
+  DatabaseBackup, Settings, Menu, X, Store, LogOut,
 } from "lucide-react";
 
 const menuGroups = [
@@ -107,7 +93,8 @@ function NavItem({ item, onNavigate }) {
   const [open, setOpen] = useState(
     hasChildren && item.children.some((c) => location.pathname.startsWith(c.path))
   );
-  const isActive = location.pathname === item.path || (hasChildren && item.children.some((c) => location.pathname === c.path));
+  const isActive = location.pathname === item.path ||
+    (hasChildren && item.children.some((c) => location.pathname === c.path));
 
   const baseCls = `w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
     isActive
@@ -130,13 +117,9 @@ function NavItem({ item, onNavigate }) {
   return (
     <div>
       {hasChildren ? (
-        <button onClick={() => setOpen(!open)} className={baseCls}>
-          {inner}
-        </button>
+        <button onClick={() => setOpen(!open)} className={baseCls}>{inner}</button>
       ) : (
-        <Link to={item.path} onClick={onNavigate} className={baseCls}>
-          {inner}
-        </Link>
+        <Link to={item.path} onClick={onNavigate} className={baseCls}>{inner}</Link>
       )}
       {hasChildren && open && (
         <div className="mt-1 ml-4 pl-3 border-l border-border space-y-0.5">
@@ -162,30 +145,24 @@ function NavItem({ item, onNavigate }) {
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isSuperAdmin, hasPermission } = useBranchContext();
+  const { user, isSuperAdmin, hasPermission, hasMenuAccessForPath } = useBranchContext();
 
   const canSee = (item) => {
     if (isSuperAdmin) return true;
     if (item.adminOnly) return false;
-    return !item.permission || hasPermission(item.permission);
+    if (item.permission && !hasPermission(item.permission)) return false;
+    return hasMenuAccessForPath(item.path);
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile overlay */}
       {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-30 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 z-40 h-full w-64 bg-sidebar border-r border-sidebar-border transition-transform duration-300 lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
+      <aside className={`fixed top-0 left-0 z-40 h-full w-64 bg-sidebar border-r border-sidebar-border transition-transform duration-300 lg:translate-x-0 ${
+        sidebarOpen ? "translate-x-0" : "-translate-x-full"
+      }`}>
         <div className="flex items-center gap-2.5 px-5 h-16 border-b border-sidebar-border">
           <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
             <Store className="w-5 h-5 text-primary-foreground" />
@@ -199,27 +176,39 @@ export default function Layout() {
         <nav className="px-3 py-4 space-y-5 overflow-y-auto h-[calc(100%-4rem)]">
           {menuGroups.map((group, gi) => {
             const visible = group.items
-              .filter(canSee)
-              .map((item) => item.children ? { ...item, children: item.children.filter(canSee) } : item)
-              .filter((item) => !item.children || item.children.length > 0);
+              .map((item) => {
+                if (item.children) {
+                  const children = item.children.filter(canSee);
+                  return { ...item, children };
+                }
+                return item;
+              })
+              .filter((item) => {
+                if (item.children) {
+                  if (item.adminOnly && !isSuperAdmin) return false;
+                  return item.children.length > 0;
+                }
+                return canSee(item);
+              });
+
             if (visible.length === 0) return null;
+
             return (
-            <div key={gi} className="space-y-1">
-              {group.label && (
-                <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                  {group.label}
-                </div>
-              )}
-              {visible.map((item) => (
-                <NavItem key={item.label} item={item} onNavigate={() => setSidebarOpen(false)} />
-              ))}
-            </div>
+              <div key={gi} className="space-y-1">
+                {group.label && (
+                  <div className="px-3 mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {group.label}
+                  </div>
+                )}
+                {visible.map((item) => (
+                  <NavItem key={item.label} item={item} onNavigate={() => setSidebarOpen(false)} />
+                ))}
+              </div>
             );
           })}
         </nav>
       </aside>
 
-      {/* Main */}
       <div className="lg:pl-64">
         <header className="sticky top-0 z-20 h-16 border-b border-emerald-100 bg-white/90 backdrop-blur-md flex items-center justify-between px-4 lg:px-8">
           <button
@@ -239,13 +228,19 @@ export default function Layout() {
                 <div className="text-sm font-medium leading-tight">
                   {user?.display_name || user?.full_name || user?.email || "—"}
                 </div>
-                <div className="text-[11px] text-muted-foreground">{ROLE_LABEL[user?.app_role] || (user?.role === "admin" ? "Admin" : "User")}</div>
+                <div className="text-[11px] text-muted-foreground">
+                  {ROLE_LABEL[user?.app_role] || (user?.role === "admin" ? "Admin" : "User")}
+                </div>
               </div>
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
                 {(user?.display_name || user?.full_name || user?.email || "U").charAt(0).toUpperCase()}
               </div>
             </div>
-            <button onClick={() => base44.auth.logout("/login")} className="p-2 rounded-lg hover:bg-accent" title="Keluar">
+            <button
+              onClick={() => base44.auth.logout("/login")}
+              className="p-2 rounded-lg hover:bg-accent"
+              title="Keluar"
+            >
               <LogOut className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
