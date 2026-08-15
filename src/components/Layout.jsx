@@ -35,7 +35,6 @@ const menuGroups = [
         { label: "Laporan Pembelian", path: "/laporan/pembelian", permission: "purchase.view" },
       ] },
       { label: "Mutasi Antar Cabang", path: "/mutasi", icon: ArrowLeftRight, permission: "transfer.view" },
-      { label: "Jual Beli Cabang", path: "/jual-beli-cabang", icon: Repeat2, permission: "transfer.view" },
     ],
   },
   {
@@ -63,7 +62,6 @@ const menuGroups = [
         icon: Database,
         children: [
           { label: "Cabang & Organisasi", path: "/master/cabang", permission: "organization.view" },
-          { label: "Gudang", path: "/master/gudang", permission: "inventory.view" },
           { label: "Kategori Produk", path: "/master/kategori", permission: "product.view" },
           { label: "Master Produk", path: "/master/barang", permission: "product.view" },
           { label: "Customer", path: "/master/pelanggan", permission: "customer.view" },

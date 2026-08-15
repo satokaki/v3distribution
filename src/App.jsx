@@ -15,7 +15,6 @@ import Layout from '@/components/Layout';
 import { BranchProvider } from '@/lib/BranchContext';
 import Dashboard from '@/pages/Dashboard';
 import Branches from '@/pages/master/Branches';
-import Warehouses from '@/pages/master/Warehouses';
 import Categories from '@/pages/master/Categories';
 import Products from '@/pages/master/Products';
 import Customers from '@/pages/master/Customers';
@@ -30,7 +29,6 @@ import PurchasePOSNew from '@/pages/PurchasePOSNew';
 import Penjualan from '@/pages/Penjualan';
 import SalesPOSNew from '@/pages/SalesPOSNew';
 import Mutasi from '@/pages/Mutasi';
-import JualBeliCabang from '@/pages/JualBeliCabang';
 import BukuKas from '@/pages/BukuKas';
 import Hutang from '@/pages/Hutang';
 import Piutang from '@/pages/Piutang';
@@ -76,7 +74,6 @@ const AuthenticatedApp = () => {
         <Route element={<BranchProvider><Layout /></BranchProvider>}>
           <Route path="/" element={<PermissionGuard permission="dashboard.view"><Dashboard /></PermissionGuard>} />
           <Route path="/master/cabang" element={<PermissionGuard permission="organization.view"><Branches /></PermissionGuard>} />
-          <Route path="/master/gudang" element={<PermissionGuard permission="inventory.view"><Warehouses /></PermissionGuard>} />
           <Route path="/master/kategori" element={<PermissionGuard permission="product.view"><Categories /></PermissionGuard>} />
           <Route path="/master/barang" element={<PermissionGuard permission="product.view"><Products /></PermissionGuard>} />
           <Route path="/master/pelanggan" element={<PermissionGuard permission="customer.view"><Customers /></PermissionGuard>} />
@@ -91,7 +88,6 @@ const AuthenticatedApp = () => {
           <Route path="/penjualan" element={<PermissionGuard permission="sales.create"><SalesPOSNew /></PermissionGuard>} />
           <Route path="/laporan/penjualan" element={<PermissionGuard permission="sales.view"><Penjualan reportOnly /></PermissionGuard>} />
           <Route path="/mutasi" element={<PermissionGuard permission="transfer.view"><Mutasi /></PermissionGuard>} />
-          <Route path="/jual-beli-cabang" element={<PermissionGuard permission="transfer.view"><JualBeliCabang /></PermissionGuard>} />
           <Route path="/buku-kas" element={<PermissionGuard permission="cash.view"><BukuKas /></PermissionGuard>} />
           <Route path="/hutang" element={<PermissionGuard permission="payable.view"><Hutang /></PermissionGuard>} />
           <Route path="/piutang" element={<PermissionGuard permission="receivable.view"><Piutang /></PermissionGuard>} />

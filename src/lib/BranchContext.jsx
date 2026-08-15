@@ -9,6 +9,7 @@ import {
 import { writeAuditLog } from "@/lib/audit";
 import { useAuth } from "@/lib/AuthContext";
 import { initialReadScopeBranchId, resolveOperationalBranchId } from "@/lib/branchContextCore";
+import { branchAllowsMenu, menuItemForPath, menuItemByKey } from "@/lib/menuAccess";
 
 const BranchContext = createContext(null);
 const LS_KEY = "v3pos.head_office_branch_id";
@@ -60,6 +61,22 @@ export function BranchProvider({ children }) {
   const readScopeBranch = accessibleBranches.find((b) => b.branch_id === readScopeBranchId);
   const isAllBranches = isSuper && readScopeBranchId === "all";
 
+  const roleCan = (perm) => hasPermission(rolePermissions, perm);
+
+  const hasMenuAccess = (menuKey) => {
+    if (isSuper) return true;
+    const item = menuItemByKey(menuKey);
+    if (!item) return true;
+    return roleCan(item.permission) && branchAllowsMenu(operationalBranch, menuKey);
+  };
+
+  const hasMenuAccessForPath = (pathname) => {
+    if (isSuper) return true;
+    const item = menuItemForPath(pathname);
+    if (!item) return true;
+    return roleCan(item.permission) && branchAllowsMenu(operationalBranch, item.key);
+  };
+
   const value = {
     user,
     loading,
@@ -78,8 +95,10 @@ export function BranchProvider({ children }) {
     hasBranchAssignment: !!operationalBranchId,
     canSwitchBranch: isSuper,
     setActiveBranch: setReadScopeBranchId,
-    hasPermission: (perm) => hasPermission(rolePermissions, perm),
+    hasPermission: roleCan,
     branchCan: (perm) => branchCan(operationalBranch, perm),
+    hasMenuAccess,
+    hasMenuAccessForPath,
   };
 
   return <BranchContext.Provider value={value}>{children}</BranchContext.Provider>;
