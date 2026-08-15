@@ -1,4 +1,7 @@
 import { base44 } from "@/api/base44Client";
+import { hasPermission, ROLE_BASE_PERMISSIONS } from "@/lib/authAccessCore";
+
+export { hasPermission, ROLE_BASE_PERMISSIONS } from "@/lib/authAccessCore";
 
 /**
  * Helper autentikasi & akses multi-cabang (pure, reusable).
@@ -28,15 +31,6 @@ const ROLE_TO_CODE = {
 
 // Baseline access is kept in the app so a newly-created Role record cannot
 // accidentally expose every module. Permissions stored in Role may extend it.
-export const ROLE_BASE_PERMISSIONS = {
-  super_admin: ["*"],
-  kepala_cabang: ["dashboard.view", "sales.*", "pricing.view", "receivable.*", "purchase.*", "payable.*", "inventory.*", "transfer.*", "cash.*", "bank.view", "reconciliation.view", "customer.*", "product.view", "report.*"],
-  admin_cabang: ["dashboard.view", "sales.*", "pricing.view", "receivable.*", "purchase.*", "payable.*", "inventory.*", "transfer.*", "cash.*", "bank.view", "customer.*", "product.view", "report.view"],
-  kasir: ["dashboard.view", "sales.view", "sales.create", "pricing.view", "receivable.view", "receivable.create", "customer.view", "customer.create", "product.view", "inventory.view", "cash.view", "cash.create"],
-  gudang: ["dashboard.view", "inventory.*", "transfer.view", "transfer.create", "purchase.view", "product.view"],
-  finance: ["dashboard.view", "receivable.*", "payable.*", "cash.*", "bank.*", "reconciliation.*", "report.*"],
-};
-
 /** Muat permission role global + daftar cabang yang dapat diakses user. */
 export async function loadUserAccess(user) {
   if (!user) return { rolePermissions: [], accessibleBranches: [], isSuperAdmin: false };
@@ -66,14 +60,6 @@ export async function loadUserAccess(user) {
 }
 
 /** Cek permission global (dari role). "*" = akses semua. */
-export function hasPermission(perms, perm) {
-  if (!perms || !perm) return false;
-  if (perms.includes("*")) return true;
-  if (perms.includes(perm)) return true;
-  const moduleName = perm.split(".")[0];
-  return perms.includes(`${moduleName}.*`);
-}
-
 const PERM_TO_FLAG = {
   "branch.view": "can_view",
   "branch.create": "can_create",

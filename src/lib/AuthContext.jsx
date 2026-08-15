@@ -2,11 +2,13 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+import { PREVIEW_USER_SESSION_KEY, assertCanEnterPreview, isPreviewAdministrator, resolveEffectiveUser } from '@/lib/previewAsUserCore';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  const [actualUser, setActualUser] = useState(null);
+  const [previewUser, setPreviewUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
@@ -94,7 +96,18 @@ export const AuthProvider = ({ children }) => {
       // Now check if the user is authenticated
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
-      setUser(currentUser);
+      setActualUser(currentUser);
+      setPreviewUser(null);
+      const previewUserId = sessionStorage.getItem(PREVIEW_USER_SESSION_KEY);
+      if (previewUserId && isPreviewAdministrator(currentUser) && previewUserId !== currentUser.id) {
+        try {
+          const savedPreviewUser = await base44.entities.User.get(previewUserId);
+          assertCanEnterPreview(currentUser, savedPreviewUser);
+          setPreviewUser(savedPreviewUser);
+        } catch {
+          sessionStorage.removeItem(PREVIEW_USER_SESSION_KEY);
+        }
+      } else if (previewUserId) sessionStorage.removeItem(PREVIEW_USER_SESSION_KEY);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
       setAuthChecked(true);
@@ -115,7 +128,9 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = (shouldRedirect = true) => {
-    setUser(null);
+    sessionStorage.removeItem(PREVIEW_USER_SESSION_KEY);
+    setPreviewUser(null);
+    setActualUser(null);
     setIsAuthenticated(false);
     
     if (shouldRedirect) {
@@ -127,14 +142,38 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const startPreviewAsUser = async (targetUser) => {
+    assertCanEnterPreview(actualUser, targetUser);
+    const verifiedTarget = await base44.entities.User.get(targetUser.id);
+    assertCanEnterPreview(actualUser, verifiedTarget);
+    sessionStorage.setItem(PREVIEW_USER_SESSION_KEY, verifiedTarget.id);
+    setPreviewUser(verifiedTarget);
+    return verifiedTarget;
+  };
+
+  const exitPreviewAsUser = () => {
+    if (!isPreviewAdministrator(actualUser)) return false;
+    sessionStorage.removeItem(PREVIEW_USER_SESSION_KEY);
+    setPreviewUser(null);
+    return true;
+  };
+
   const navigateToLogin = () => {
     // Use the SDK's redirectToLogin method
     base44.auth.redirectToLogin(window.location.href);
   };
 
+  const effectiveUser = resolveEffectiveUser(actualUser, previewUser);
+
   return (
     <AuthContext.Provider value={{ 
-      user, 
+      user: effectiveUser,
+      actualUser,
+      effectiveUser,
+      isPreviewMode: Boolean(previewUser && effectiveUser?.id !== actualUser?.id),
+      canPreviewAsUser: isPreviewAdministrator(actualUser),
+      startPreviewAsUser,
+      exitPreviewAsUser,
       isAuthenticated, 
       isLoadingAuth,
       isLoadingPublicSettings,

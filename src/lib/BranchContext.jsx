@@ -14,7 +14,7 @@ const BranchContext = createContext(null);
 const LS_KEY = "v3pos.head_office_branch_id";
 
 export function BranchProvider({ children }) {
-  const { user: authenticatedUser } = useAuth();
+  const { actualUser, effectiveUser, isPreviewMode, canPreviewAsUser, startPreviewAsUser, exitPreviewAsUser } = useAuth();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [accessibleBranches, setAccessibleBranches] = useState([]);
@@ -25,14 +25,17 @@ export function BranchProvider({ children }) {
   const isSuper = isSuperAdmin(user);
 
   useEffect(() => {
+    let active = true;
+    setLoading(true);
     (async () => {
-      const u = authenticatedUser || await getCurrentUser();
+      const u = effectiveUser || await getCurrentUser();
       if (!u) {
-        setLoading(false);
+        if (active) setLoading(false);
         return;
       }
-      setUser(u);
       const { rolePermissions: rp, accessibleBranches: ab, isSuperAdmin: sa } = await loadUserAccess(u);
+      if (!active) return;
+      setUser(u);
       setRolePermissions(rp);
       setAccessibleBranches(ab);
 
@@ -41,7 +44,8 @@ export function BranchProvider({ children }) {
       setReadScopeBranchIdState(initialReadScopeBranchId({ isSuperAdmin: sa, operationalBranchId: operational, storedScope: localStorage.getItem(LS_KEY), mappings: ab }));
       setLoading(false);
     })();
-  }, [authenticatedUser]);
+    return () => { active = false; };
+  }, [effectiveUser]);
 
   const setReadScopeBranchId = useCallback((id) => {
     if (!isSuper) return;
@@ -62,6 +66,12 @@ export function BranchProvider({ children }) {
 
   const value = {
     user,
+    actualUser,
+    effectiveUser: user,
+    isPreviewMode,
+    canPreviewAsUser,
+    startPreviewAsUser,
+    exitPreviewAsUser,
     loading,
     isSuperAdmin: isSuper,
     accessibleBranches,

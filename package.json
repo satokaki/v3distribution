@@ -21,6 +21,7 @@
     "test:stock-reconciliation": "node --test tests/stockReconciliation.test.mjs",
     "test:backup-restore": "node --experimental-strip-types --test tests/backupRestore.test.mjs",
     "test:product-import": "node --test tests/productImport.test.mjs",
+    "test:preview-as-user": "node --test tests/previewAsUser.test.mjs",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
   },

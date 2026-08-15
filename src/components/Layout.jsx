@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Link, useLocation, Outlet } from "react-router-dom";
 import { useBranchContext } from "@/lib/BranchContext";
+import { useAuth } from "@/lib/AuthContext";
 import BranchSelector from "@/components/BranchSelector";
-import { base44 } from "@/api/base44Client";
+import PreviewAsUserModal from "@/components/PreviewAsUserModal";
 
 const ROLE_LABEL = {
   super_admin: "Super Admin", kepala_cabang: "Kepala Cabang", admin_cabang: "Admin Cabang",
@@ -27,6 +28,7 @@ import {
   X,
   Store,
   LogOut,
+  Eye,
 } from "lucide-react";
 
 const menuGroups = [
@@ -162,7 +164,9 @@ function NavItem({ item, onNavigate }) {
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, isSuperAdmin, hasPermission } = useBranchContext();
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const { logout } = useAuth();
+  const { user, isSuperAdmin, hasPermission, operationalBranch, isPreviewMode, canPreviewAsUser, exitPreviewAsUser } = useBranchContext();
 
   const canSee = (item) => {
     if (isSuperAdmin) return true;
@@ -221,7 +225,8 @@ export default function Layout() {
 
       {/* Main */}
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 h-16 border-b border-emerald-100 bg-white/90 backdrop-blur-md flex items-center justify-between px-4 lg:px-8">
+        {isPreviewMode && <div className="sticky top-0 z-50 flex min-h-10 items-center justify-between gap-3 bg-amber-400 px-4 py-2 text-xs font-semibold text-amber-950 shadow-sm lg:px-8"><span>PREVIEW MODE — Melihat sebagai {user?.display_name || user?.full_name || user?.email} · {ROLE_LABEL[user?.app_role] || user?.role || "User"} · {operationalBranch?.branch_name || "Cabang belum ditentukan"}</span><button onClick={exitPreviewAsUser} className="shrink-0 rounded-lg bg-amber-950 px-3 py-1.5 text-amber-50 hover:bg-black">Kembali ke Super Admin</button></div>}
+        <header className={`sticky ${isPreviewMode ? "top-10" : "top-0"} z-20 h-16 border-b border-emerald-100 bg-white/90 backdrop-blur-md flex items-center justify-between px-4 lg:px-8`}>
           <button
             className="lg:hidden p-2 -ml-2 rounded-lg hover:bg-accent"
             onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -233,6 +238,7 @@ export default function Layout() {
             <span>Sistem Manajemen Gudang & Distribusi</span>
           </div>
           <div className="flex items-center gap-3">
+            {canPreviewAsUser && !isPreviewMode && <button onClick={() => setPreviewModalOpen(true)} className="hidden items-center gap-2 rounded-lg border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 md:inline-flex"><Eye className="h-4 w-4" /> Lihat Sebagai User</button>}
             <BranchSelector />
             <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-border">
               <div className="text-right">
@@ -245,7 +251,7 @@ export default function Layout() {
                 {(user?.display_name || user?.full_name || user?.email || "U").charAt(0).toUpperCase()}
               </div>
             </div>
-            <button onClick={() => base44.auth.logout("/login")} className="p-2 rounded-lg hover:bg-accent" title="Keluar">
+            <button onClick={() => logout(true)} className="p-2 rounded-lg hover:bg-accent" title="Keluar">
               <LogOut className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
@@ -255,6 +261,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <PreviewAsUserModal open={previewModalOpen} onClose={() => setPreviewModalOpen(false)} />
     </div>
   );
 }

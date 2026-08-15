@@ -4,8 +4,10 @@ import { useToast } from "@/components/ui/use-toast";
 import PageHeader from "@/components/PageHeader";
 import DataTable from "@/components/DataTable";
 import UserAccessModal from "@/components/UserAccessModal";
+import PreviewAsUserModal from "@/components/PreviewAsUserModal";
+import { useBranchContext } from "@/lib/BranchContext";
 import { writeAuditLog } from "@/lib/audit";
-import { Plus, Pencil, KeyRound, Power } from "lucide-react";
+import { Plus, Pencil, KeyRound, Power, Eye } from "lucide-react";
 
 const ROLE_LABEL = {
   super_admin: "Super Admin", kepala_cabang: "Kepala Cabang", admin_cabang: "Admin Cabang",
@@ -14,11 +16,13 @@ const ROLE_LABEL = {
 
 export default function PengaturanUser() {
   const { toast } = useToast();
+  const { canPreviewAsUser } = useBranchContext();
   const [users, setUsers] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -88,11 +92,12 @@ export default function PengaturanUser() {
       <PageHeader
         title="User & Hak Akses"
         subtitle="Kelola user, role, penempatan cabang, dan permission"
-        action={
+        action={<div className="flex flex-wrap gap-2">
+          {canPreviewAsUser && <button onClick={() => setPreviewOpen(true)} className="inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"><Eye className="h-4 w-4" /> Lihat Sebagai User</button>}
           <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90">
             <Plus className="w-4 h-4" /> Tambah User
           </button>
-        }
+        </div>}
       />
       <DataTable
         columns={columns}
@@ -122,6 +127,7 @@ export default function PengaturanUser() {
         branches={branches}
         existingUsers={users}
       />
+      <PreviewAsUserModal open={previewOpen} onClose={() => setPreviewOpen(false)} />
     </div>
   );
 }
