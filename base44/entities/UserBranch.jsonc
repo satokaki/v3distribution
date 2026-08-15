@@ -75,6 +75,13 @@
       "title": "Export",
       "default": false
     },
+    "menu_access": {
+      "type": "array",
+      "title": "Akses Menu Cabang",
+      "items": {
+        "type": "string"
+      }
+    },
     "status": {
       "type": "string",
       "title": "Status",
