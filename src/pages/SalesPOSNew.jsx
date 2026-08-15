@@ -20,7 +20,14 @@ const localDate = () => new Date().toLocaleDateString("en-CA", { timeZone: "Asia
 
 export default function SalesPOSNew() {
   const { toast } = useToast();
-  const { operationalBranchId, operationalBranch } = useBranchContext();
+  const {
+    operationalBranchId,
+    operationalBranch,
+    readScopeBranchId,
+    readScopeBranch,
+    isAllBranches,
+  } = useBranchContext();
+
   const barcodeRef = useRef(null);
   const [master, setMaster] = useState({ products: [], customers: [], salespersons: [], accounts: [], receivables: [] });
   const [stockByProduct, setStockByProduct] = useState({});
@@ -37,8 +44,18 @@ export default function SalesPOSNew() {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState([]);
   const [editingDraftId, setEditingDraftId] = useState("");
+
   const branchId = operationalBranchId;
-  const activeBranch = operationalBranch; // presentation-only compatibility inside this component
+  const activeBranch = operationalBranch;
+
+  // STANDARD WORKFLOW GUARD:
+  // User may transact only when the header-selected branch matches
+  // the actual operational branch. "Semua Cabang" is read-only.
+  const saleContextAllowed =
+    !isAllBranches &&
+    Boolean(readScopeBranchId) &&
+    Boolean(branchId) &&
+    readScopeBranchId === branchId;
 
   const loadDrafts = async () => {
     if (!branchId) return setDrafts([]);
@@ -96,6 +113,7 @@ export default function SalesPOSNew() {
   };
 
   const addProduct = async (product) => {
+    if (!saleContextAllowed) return toast({ title: "Cabang transaksi tidak sesuai konteks yang dipilih", variant: "destructive" });
     if (!branchId) return toast({ title: "Cabang user belum tersedia", variant: "destructive" });
     try {
       const resolved = await getBranchProductBalance(branchId, product.id);
@@ -131,6 +149,9 @@ export default function SalesPOSNew() {
   });
 
   const validate = () => {
+    if (!saleContextAllowed) {
+      throw new Error("SALE_BRANCH_CONTEXT_MISMATCH: Pilih cabang transaksi yang sesuai sebelum membuat penjualan.");
+    }
     if (!branchId) throw new Error("Head Office harus memilih konteks satu cabang sebelum membuat transaksi.");
     if (!salespersonId) throw new Error("Pilih sales.");
     if (!items.length) throw new Error("Tambahkan minimal satu produk.");
@@ -165,6 +186,54 @@ export default function SalesPOSNew() {
   });
 
   if (loading) return <div className="py-20 text-center text-sm text-muted-foreground">Menyiapkan terminal penjualan...</div>;
+
+  if (!saleContextAllowed) {
+    const selectedName = isAllBranches
+      ? "Semua Cabang"
+      : (readScopeBranch?.branch_name || readScopeBranch?.name || "Cabang");
+
+    const transactionName =
+      activeBranch?.branch_name ||
+      activeBranch?.name ||
+      "Cabang transaksi user";
+
+    return (
+      <div className="space-y-4 pb-28 lg:pb-0">
+        <header className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h1 className="text-2xl font-bold">PENJUALAN BARU</h1>
+            <p className="text-sm text-muted-foreground">{selectedName}</p>
+          </div>
+          <Link to="/laporan/penjualan" className="inline-flex h-10 items-center gap-2 rounded-lg border px-3 text-sm font-medium hover:bg-accent">
+            <ReceiptText className="h-4 w-4" />
+            Laporan Penjualan
+          </Link>
+        </header>
+
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-amber-950">
+            Penjualan dikunci karena cabang yang dipilih berbeda dengan cabang transaksi.
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-amber-900">
+            Untuk mencegah stok, kas, salesperson, piutang, dan laporan masuk ke cabang yang salah,
+            pilih cabang transaksi yang sesuai pada selector kanan atas. "Semua Cabang" hanya untuk
+            melihat laporan dan tidak dapat digunakan untuk transaksi.
+          </p>
+
+          <div className="mt-4 grid max-w-3xl gap-3 sm:grid-cols-2">
+            <div className="rounded-xl border border-amber-200 bg-white/70 px-4 py-3 text-sm">
+              <div className="text-xs text-muted-foreground">Cabang dipilih</div>
+              <div className="mt-1 font-semibold">{selectedName}</div>
+            </div>
+            <div className="rounded-xl border border-amber-200 bg-white/70 px-4 py-3 text-sm">
+              <div className="text-xs text-muted-foreground">Cabang transaksi user</div>
+              <div className="mt-1 font-semibold">{transactionName}</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 pb-28 lg:pb-0">
